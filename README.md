@@ -1,5 +1,8 @@
 # ShotAPI
 
+![Status](https://img.shields.io/badge/status-beta-yellow)
+![License](https://img.shields.io/badge/license-MIT-blue)
+
 Fast, affordable Screenshot API. **ScreenshotOne compatible**.
 
 🌐 **Website**: [shotapi.io](https://shotapi.io)
