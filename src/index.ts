@@ -4,6 +4,7 @@ import { logger } from 'hono/logger';
 import { serve } from '@hono/node-server';
 import { parseParams } from './params.js';
 import { takeScreenshot, closeBrowser } from './screenshot.js';
+import { checkRateLimit, getRateLimitStats } from './rate-limit.js';
 
 const app = new Hono();
 
@@ -27,8 +28,42 @@ app.get('/health', (c) => {
   return c.json({ status: 'ok' });
 });
 
+// Stats endpoint (for monitoring)
+app.get('/stats', (c) => {
+  return c.json(getRateLimitStats());
+});
+
+// Helper to get client IP
+function getClientIP(c: any): string {
+  return (
+    c.req.header('fly-client-ip') ||
+    c.req.header('x-forwarded-for')?.split(',')[0]?.trim() ||
+    c.req.header('x-real-ip') ||
+    'unknown'
+  );
+}
+
 // Main screenshot endpoint - ScreenshotOne compatible
 app.get('/take', async (c) => {
+  // Rate limiting
+  const ip = getClientIP(c);
+  const rateLimit = checkRateLimit(ip);
+
+  c.header('X-RateLimit-Limit', '100');
+  c.header('X-RateLimit-Remaining', rateLimit.remaining.toString());
+  c.header('X-RateLimit-Reset', Math.floor(rateLimit.resetAt / 1000).toString());
+
+  if (!rateLimit.allowed) {
+    return c.json(
+      {
+        error: true,
+        message: 'Rate limit exceeded. Free tier allows 100 screenshots per day.',
+        resetAt: new Date(rateLimit.resetAt).toISOString(),
+      },
+      429
+    );
+  }
+
   try {
     const query = c.req.query();
     const params = parseParams(query);
@@ -68,6 +103,25 @@ app.get('/take', async (c) => {
 
 // Also support POST for larger payloads
 app.post('/take', async (c) => {
+  // Rate limiting
+  const ip = getClientIP(c);
+  const rateLimit = checkRateLimit(ip);
+
+  c.header('X-RateLimit-Limit', '100');
+  c.header('X-RateLimit-Remaining', rateLimit.remaining.toString());
+  c.header('X-RateLimit-Reset', Math.floor(rateLimit.resetAt / 1000).toString());
+
+  if (!rateLimit.allowed) {
+    return c.json(
+      {
+        error: true,
+        message: 'Rate limit exceeded. Free tier allows 100 screenshots per day.',
+        resetAt: new Date(rateLimit.resetAt).toISOString(),
+      },
+      429
+    );
+  }
+
   try {
     const body = await c.req.json();
     const params = parseParams(body);
