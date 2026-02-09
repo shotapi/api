@@ -92,8 +92,37 @@ export async function dashboardPage(apiKey: string): Promise<string> {
     <!-- Upgrade CTA -->
     <div class="bg-gradient-to-r from-indigo-900/50 to-purple-900/50 border border-indigo-700/50 rounded-xl p-6 text-center">
       <h2 class="text-xl font-bold text-white mb-2">Need more screenshots?</h2>
-      <p class="text-slate-300 mb-4">Upgrade to Starter for 2,500/day or Pro for 10,000/day.</p>
-      <a href="/pricing" class="inline-block bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-lg transition font-medium">View Plans</a>
-    </div>` : ''}
+      <p class="text-slate-300 mb-4">Upgrade your plan for higher daily limits.</p>
+      <div class="flex justify-center gap-4">
+        <button onclick="upgrade('starter')"
+          class="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-lg transition font-medium">
+          Starter — $9/mo <span class="text-indigo-200 text-sm">(2,500/day)</span>
+        </button>
+        <button onclick="upgrade('pro')"
+          class="bg-white hover:bg-slate-100 text-slate-900 px-6 py-3 rounded-lg transition font-medium">
+          Pro — $29/mo <span class="text-slate-500 text-sm">(10,000/day)</span>
+        </button>
+      </div>
+      <p id="upgrade-error" class="text-red-400 text-sm mt-3 hidden"></p>
+    </div>
+    <script>
+      async function upgrade(plan) {
+        const errEl = document.getElementById('upgrade-error');
+        errEl.classList.add('hidden');
+        try {
+          const res = await fetch('/billing/checkout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ api_key: '${apiKey}', plan }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || 'Checkout failed');
+          window.location.href = data.url;
+        } catch (err) {
+          errEl.textContent = err.message;
+          errEl.classList.remove('hidden');
+        }
+      }
+    </script>` : ''}
   </div>`;
 }
