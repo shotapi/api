@@ -31,7 +31,7 @@ billing.post('/checkout', async (c) => {
 
     const priceId = getPriceId(plan);
     if (!priceId) {
-      return c.json({ error: true, message: `Unknown plan: ${plan}. Use "starter" or "pro".` }, 400);
+      return c.json({ error: true, message: 'Billing is not available yet. Please contact hello@shotapi.io to upgrade.' }, 400);
     }
 
     // Verify API key exists
@@ -54,8 +54,8 @@ billing.post('/checkout', async (c) => {
 
     return c.json({ url: session.url });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return c.json({ error: true, message }, 400);
+    console.error('Checkout error:', error instanceof Error ? error.message : error);
+    return c.json({ error: true, message: 'Something went wrong. Please try again or contact hello@shotapi.io.' }, 500);
   }
 });
 
