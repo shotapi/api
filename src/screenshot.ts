@@ -1,4 +1,5 @@
 import { chromium, type Browser, type Page } from 'playwright';
+import sharp from 'sharp';
 import type { ScreenshotParams } from './params.js';
 
 let browser: Browser | null = null;
@@ -59,25 +60,32 @@ export async function takeScreenshot(params: ScreenshotParams): Promise<Buffer> 
         printBackground: true,
       });
     } else {
-      const options: Parameters<Page['screenshot']>[0] = {
-        type: params.format === 'jpeg' ? 'jpeg' : params.format === 'webp' ? 'png' : params.format,
+      // Always capture as PNG from Playwright (lossless source)
+      const captureOptions: Parameters<Page['screenshot']>[0] = {
+        type: 'png',
         fullPage: params.full_page,
       };
 
-      // Add quality for jpeg/webp
-      if (params.format === 'jpeg') {
-        options.quality = params.image_quality;
-      }
-
-      // Capture specific element if selector provided
+      let rawPng: Buffer;
       if (params.selector) {
         const element = await page.$(params.selector);
         if (!element) {
           throw new Error(`Element not found: ${params.selector}`);
         }
-        screenshot = await element.screenshot(options);
+        rawPng = await element.screenshot(captureOptions);
       } else {
-        screenshot = await page.screenshot(options);
+        rawPng = await page.screenshot(captureOptions);
+      }
+
+      // Convert to requested format via sharp
+      if (params.format === 'png') {
+        screenshot = rawPng;
+      } else if (params.format === 'webp') {
+        screenshot = await sharp(rawPng).webp({ quality: params.image_quality }).toBuffer();
+      } else if (params.format === 'jpeg') {
+        screenshot = await sharp(rawPng).jpeg({ quality: params.image_quality }).toBuffer();
+      } else {
+        screenshot = rawPng;
       }
     }
 
