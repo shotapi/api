@@ -1,30 +1,26 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import Database from 'better-sqlite3';
-import { getDb, logRequest, getStats, closeDb } from '../src/db.js';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { getClient, initDb, logRequest, getStats, resetClient } from '../src/db.js';
 
 // Use in-memory DB for tests
-process.env.DB_PATH = ':memory:';
+process.env.TURSO_DATABASE_URL = ':memory:';
 
 describe('Database', () => {
-  beforeEach(() => {
-    closeDb();
+  beforeEach(async () => {
+    resetClient();
+    await initDb();
   });
 
-  afterEach(() => {
-    closeDb();
-  });
-
-  it('creates schema on first access', () => {
-    const db = getDb();
-    const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as { name: string }[];
-    const tableNames = tables.map(t => t.name);
+  it('creates schema on init', async () => {
+    const db = getClient();
+    const result = await db.execute("SELECT name FROM sqlite_master WHERE type='table'");
+    const tableNames = result.rows.map(r => r.name as string);
     expect(tableNames).toContain('api_keys');
     expect(tableNames).toContain('requests');
     expect(tableNames).toContain('daily_stats');
   });
 
-  it('logs requests', () => {
-    logRequest({
+  it('logs requests', async () => {
+    await logRequest({
       ip: '1.2.3.4',
       url: 'https://example.com',
       format: 'png',
@@ -32,22 +28,23 @@ describe('Database', () => {
       status: 'success',
     });
 
-    const db = getDb();
-    const row = db.prepare('SELECT * FROM requests').get() as any;
+    const db = getClient();
+    const result = await db.execute('SELECT * FROM requests');
+    const row = result.rows[0];
     expect(row.ip).toBe('1.2.3.4');
     expect(row.url).toBe('https://example.com');
-    expect(row.duration_ms).toBe(500);
+    expect(Number(row.duration_ms)).toBe(500);
   });
 
-  it('updates daily stats on log', () => {
-    logRequest({
+  it('updates daily stats on log', async () => {
+    await logRequest({
       ip: '1.2.3.4',
       url: 'https://example.com',
       format: 'png',
       durationMs: 500,
       status: 'success',
     });
-    logRequest({
+    await logRequest({
       ip: '1.2.3.4',
       url: 'https://example.com',
       format: 'png',
@@ -55,13 +52,13 @@ describe('Database', () => {
       status: 'success',
     });
 
-    const stats = getStats();
+    const stats = await getStats();
     expect(stats.todayRequests).toBe(2);
     expect(stats.uniqueIPs).toBe(1);
   });
 
-  it('returns correct stats', () => {
-    const stats = getStats();
+  it('returns correct stats', async () => {
+    const stats = await getStats();
     expect(stats.totalRequests).toBe(0);
     expect(stats.todayRequests).toBe(0);
     expect(stats.uniqueIPs).toBe(0);

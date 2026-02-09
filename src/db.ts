@@ -1,25 +1,20 @@
-import Database from 'better-sqlite3';
-import path from 'path';
+import { createClient, type Client } from '@libsql/client';
 
-let db: Database.Database | null = null;
+let client: Client | null = null;
 
-function getDbPath(): string {
-  return process.env.DB_PATH || path.join(process.cwd(), 'shotapi.db');
-}
-
-export function getDb(): Database.Database {
-  if (!db) {
-    db = new Database(getDbPath());
-    db.pragma('journal_mode = WAL');
-    db.pragma('busy_timeout = 5000');
-    initSchema(db);
+export function getClient(): Client {
+  if (!client) {
+    const url = process.env.TURSO_DATABASE_URL || 'file:shotapi.db';
+    const authToken = process.env.TURSO_AUTH_TOKEN;
+    client = createClient({ url, authToken });
   }
-  return db;
+  return client;
 }
 
-function initSchema(db: Database.Database): void {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS api_keys (
+export async function initDb(): Promise<void> {
+  const db = getClient();
+  await db.batch([
+    `CREATE TABLE IF NOT EXISTS api_keys (
       key TEXT PRIMARY KEY,
       email TEXT NOT NULL,
       tier TEXT NOT NULL DEFAULT 'free',
@@ -27,9 +22,8 @@ function initSchema(db: Database.Database): void {
       stripe_subscription_id TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       last_used_at TEXT
-    );
-
-    CREATE TABLE IF NOT EXISTS requests (
+    )`,
+    `CREATE TABLE IF NOT EXISTS requests (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       api_key TEXT,
       ip TEXT NOT NULL,
@@ -38,64 +32,66 @@ function initSchema(db: Database.Database): void {
       duration_ms INTEGER,
       status TEXT NOT NULL DEFAULT 'success',
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS daily_stats (
+    )`,
+    `CREATE TABLE IF NOT EXISTS daily_stats (
       date TEXT NOT NULL,
       api_key TEXT,
       ip TEXT,
       request_count INTEGER NOT NULL DEFAULT 0,
       PRIMARY KEY (date, api_key, ip)
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_requests_api_key ON requests(api_key);
-    CREATE INDEX IF NOT EXISTS idx_requests_ip ON requests(ip);
-    CREATE INDEX IF NOT EXISTS idx_requests_created_at ON requests(created_at);
-    CREATE INDEX IF NOT EXISTS idx_daily_stats_date ON daily_stats(date);
-  `);
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_requests_api_key ON requests(api_key)`,
+    `CREATE INDEX IF NOT EXISTS idx_requests_ip ON requests(ip)`,
+    `CREATE INDEX IF NOT EXISTS idx_requests_created_at ON requests(created_at)`,
+    `CREATE INDEX IF NOT EXISTS idx_daily_stats_date ON daily_stats(date)`,
+  ], 'write');
 }
 
-export function logRequest(params: {
+export async function logRequest(params: {
   apiKey?: string;
   ip: string;
   url: string;
   format: string;
   durationMs: number;
   status: string;
-}): void {
-  const db = getDb();
+}): Promise<void> {
+  const db = getClient();
   const today = new Date().toISOString().split('T')[0];
 
-  db.prepare(
-    'INSERT INTO requests (api_key, ip, url, format, duration_ms, status) VALUES (?, ?, ?, ?, ?, ?)'
-  ).run(params.apiKey || null, params.ip, params.url, params.format, params.durationMs, params.status);
-
-  // Upsert daily stats
-  db.prepare(`
-    INSERT INTO daily_stats (date, api_key, ip, request_count)
-    VALUES (?, ?, ?, 1)
-    ON CONFLICT(date, api_key, ip) DO UPDATE SET request_count = request_count + 1
-  `).run(today, params.apiKey || '', params.ip);
+  await db.batch([
+    {
+      sql: 'INSERT INTO requests (api_key, ip, url, format, duration_ms, status) VALUES (?, ?, ?, ?, ?, ?)',
+      args: [params.apiKey || null, params.ip, params.url, params.format, params.durationMs, params.status],
+    },
+    {
+      sql: `INSERT INTO daily_stats (date, api_key, ip, request_count)
+        VALUES (?, ?, ?, 1)
+        ON CONFLICT(date, api_key, ip) DO UPDATE SET request_count = request_count + 1`,
+      args: [today, params.apiKey || '', params.ip],
+    },
+  ], 'write');
 }
 
-export function getStats(): { totalRequests: number; todayRequests: number; uniqueIPs: number } {
-  const db = getDb();
+export async function getStats(): Promise<{ totalRequests: number; todayRequests: number; uniqueIPs: number }> {
+  const db = getClient();
   const today = new Date().toISOString().split('T')[0];
 
-  const total = db.prepare('SELECT COUNT(*) as count FROM requests').get() as { count: number };
-  const todayStats = db.prepare('SELECT SUM(request_count) as count FROM daily_stats WHERE date = ?').get(today) as { count: number | null };
-  const ips = db.prepare('SELECT COUNT(DISTINCT ip) as count FROM daily_stats WHERE date = ?').get(today) as { count: number };
+  const results = await db.batch([
+    'SELECT COUNT(*) as count FROM requests',
+    { sql: 'SELECT SUM(request_count) as count FROM daily_stats WHERE date = ?', args: [today] },
+    { sql: 'SELECT COUNT(DISTINCT ip) as count FROM daily_stats WHERE date = ?', args: [today] },
+  ], 'read');
 
   return {
-    totalRequests: total.count,
-    todayRequests: todayStats.count || 0,
-    uniqueIPs: ips.count,
+    totalRequests: Number(results[0].rows[0].count) || 0,
+    todayRequests: Number(results[1].rows[0].count) || 0,
+    uniqueIPs: Number(results[2].rows[0].count) || 0,
   };
 }
 
-export function closeDb(): void {
-  if (db) {
-    db.close();
-    db = null;
+export function resetClient(): void {
+  if (client) {
+    client.close();
+    client = null;
   }
 }

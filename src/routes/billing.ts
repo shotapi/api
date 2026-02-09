@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import Stripe from 'stripe';
-import { getDb } from '../db.js';
+import { getClient } from '../db.js';
 
 const billing = new Hono();
 
@@ -21,16 +21,17 @@ billing.post('/checkout', async (c) => {
     }
 
     // Verify API key exists
-    const db = getDb();
-    const keyRow = db.prepare('SELECT email FROM api_keys WHERE key = ?').get(api_key) as { email: string } | undefined;
-    if (!keyRow) {
+    const db = getClient();
+    const keyResult = await db.execute({ sql: 'SELECT email FROM api_keys WHERE key = ?', args: [api_key] });
+    if (keyResult.rows.length === 0) {
       return c.json({ error: true, message: 'Invalid API key' }, 404);
     }
+    const email = keyResult.rows[0].email as string;
 
     const stripe = getStripe();
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
-      customer_email: keyRow.email,
+      customer_email: email,
       line_items: [{ price: price_id, quantity: 1 }],
       success_url: `https://shotapi.io/dashboard?key=${api_key}&upgraded=true`,
       cancel_url: `https://shotapi.io/pricing`,
@@ -57,7 +58,7 @@ billing.post('/webhook', async (c) => {
   try {
     const rawBody = await c.req.text();
     const event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
-    const db = getDb();
+    const db = getClient();
 
     switch (event.type) {
       case 'checkout.session.completed': {
@@ -72,9 +73,10 @@ billing.post('/webhook', async (c) => {
           const priceId = subscription.items.data[0]?.price?.id;
           const tier = determineTier(priceId || '');
 
-          db.prepare(
-            'UPDATE api_keys SET tier = ?, stripe_customer_id = ?, stripe_subscription_id = ? WHERE key = ?'
-          ).run(tier, customerId || null, subscriptionId, apiKey);
+          await db.execute({
+            sql: 'UPDATE api_keys SET tier = ?, stripe_customer_id = ?, stripe_subscription_id = ? WHERE key = ?',
+            args: [tier, customerId || null, subscriptionId, apiKey],
+          });
         }
         break;
       }
@@ -85,17 +87,19 @@ billing.post('/webhook', async (c) => {
         const tier = determineTier(priceId || '');
         const subscriptionId = subscription.id;
 
-        db.prepare(
-          'UPDATE api_keys SET tier = ? WHERE stripe_subscription_id = ?'
-        ).run(tier, subscriptionId);
+        await db.execute({
+          sql: 'UPDATE api_keys SET tier = ? WHERE stripe_subscription_id = ?',
+          args: [tier, subscriptionId],
+        });
         break;
       }
 
       case 'customer.subscription.deleted': {
         const subscription = event.data.object as Stripe.Subscription;
-        db.prepare(
-          'UPDATE api_keys SET tier = \'free\' WHERE stripe_subscription_id = ?'
-        ).run(subscription.id);
+        await db.execute({
+          sql: "UPDATE api_keys SET tier = 'free' WHERE stripe_subscription_id = ?",
+          args: [subscription.id],
+        });
         break;
       }
     }
@@ -109,8 +113,6 @@ billing.post('/webhook', async (c) => {
 });
 
 function determineTier(priceId: string): string {
-  // Map Stripe price IDs to tiers
-  // These will be set as env vars: STRIPE_STARTER_PRICE_ID, STRIPE_PRO_PRICE_ID
   const starterPriceId = process.env.STRIPE_STARTER_PRICE_ID;
   const proPriceId = process.env.STRIPE_PRO_PRICE_ID;
 

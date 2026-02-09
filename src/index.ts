@@ -6,7 +6,7 @@ import type { Context } from 'hono';
 import { parseParams } from './params.js';
 import { takeScreenshot, closeBrowser } from './screenshot.js';
 import { checkRateLimit, getRateLimitStats, type Tier } from './rate-limit.js';
-import { logRequest, getStats, closeDb } from './db.js';
+import { initDb, logRequest, getStats, resetClient } from './db.js';
 import { extractApiKey, validateApiKey } from './auth.js';
 import keys from './routes/keys.js';
 import billing from './routes/billing.js';
@@ -37,9 +37,9 @@ app.get('/health', (c) => {
   return c.json({ status: 'ok' });
 });
 
-app.get('/stats', (c) => {
-  const rateLimitStats = getRateLimitStats();
-  const dbStats = getStats();
+app.get('/stats', async (c) => {
+  const rateLimitStats = await getRateLimitStats();
+  const dbStats = await getStats();
   return c.json({ ...rateLimitStats, ...dbStats });
 });
 
@@ -74,7 +74,7 @@ async function handleScreenshot(c: Context, rawParams: Record<string, string>) {
   let apiKey: string | undefined;
 
   if (apiKeyStr) {
-    const keyInfo = validateApiKey(apiKeyStr);
+    const keyInfo = await validateApiKey(apiKeyStr);
     if (!keyInfo) {
       return c.json({ error: true, message: 'Invalid API key' }, 401);
     }
@@ -83,7 +83,7 @@ async function handleScreenshot(c: Context, rawParams: Record<string, string>) {
   }
 
   // Rate limiting
-  const rateLimit = checkRateLimit({ ip, apiKey, tier });
+  const rateLimit = await checkRateLimit({ ip, apiKey, tier });
 
   c.header('X-RateLimit-Limit', rateLimit.limit.toString());
   c.header('X-RateLimit-Remaining', rateLimit.remaining.toString());
@@ -107,8 +107,8 @@ async function handleScreenshot(c: Context, rawParams: Record<string, string>) {
     const screenshot = await takeScreenshot(params);
     const duration = Date.now() - startTime;
 
-    // Log request to SQLite
-    logRequest({
+    // Log request to database
+    await logRequest({
       apiKey,
       ip,
       url: params.url,
@@ -154,16 +154,21 @@ app.route('/', pages);
 process.on('SIGTERM', async () => {
   console.log('Shutting down...');
   await closeBrowser();
-  closeDb();
+  resetClient();
   process.exit(0);
 });
 
 // --- Start server ---
 
 const port = parseInt(process.env.PORT || '3000');
-console.log(`ShotAPI starting on port ${port}`);
 
-serve({
-  fetch: app.fetch,
-  port,
+async function start() {
+  await initDb();
+  console.log(`ShotAPI starting on port ${port}`);
+  serve({ fetch: app.fetch, port });
+}
+
+start().catch((err) => {
+  console.error('Failed to start:', err);
+  process.exit(1);
 });

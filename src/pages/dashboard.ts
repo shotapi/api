@@ -1,10 +1,11 @@
-import { getDb } from '../db.js';
+import { getClient } from '../db.js';
 
-export function dashboardPage(apiKey: string): string {
-  const db = getDb();
+export async function dashboardPage(apiKey: string): Promise<string> {
+  const db = getClient();
 
   // Get key info
-  const keyInfo = db.prepare('SELECT * FROM api_keys WHERE key = ?').get(apiKey) as any;
+  const keyResult = await db.execute({ sql: 'SELECT * FROM api_keys WHERE key = ?', args: [apiKey] });
+  const keyInfo = keyResult.rows[0];
   if (!keyInfo) {
     return `<div class="max-w-4xl mx-auto px-4 py-16 text-center">
       <h1 class="text-2xl font-bold text-white mb-4">API Key Not Found</h1>
@@ -18,23 +19,34 @@ export function dashboardPage(apiKey: string): string {
     starter: 2500,
     pro: 10000,
   };
-  const dailyLimit = DAILY_LIMITS[keyInfo.tier] || 100;
+  const tier = keyInfo.tier as string;
+  const dailyLimit = DAILY_LIMITS[tier] || 100;
 
-  // Get last 7 days usage
-  const days: { date: string; count: number }[] = [];
+  // Get last 7 days usage in a batch
+  const dates: string[] = [];
   for (let i = 6; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    const dateStr = d.toISOString().split('T')[0];
-    const row = db.prepare(
-      'SELECT COALESCE(SUM(request_count), 0) as count FROM daily_stats WHERE date = ? AND api_key = ?'
-    ).get(dateStr, apiKey) as { count: number };
-    days.push({ date: dateStr, count: row.count });
+    dates.push(d.toISOString().split('T')[0]);
   }
 
+  const dayQueries = dates.map(dateStr => ({
+    sql: 'SELECT COALESCE(SUM(request_count), 0) as count FROM daily_stats WHERE date = ? AND api_key = ?',
+    args: [dateStr, apiKey],
+  }));
+
+  const totalQuery = { sql: 'SELECT COUNT(*) as count FROM requests WHERE api_key = ?', args: [apiKey] };
+
+  const results = await db.batch([...dayQueries, totalQuery], 'read');
+
+  const days = dates.map((date, i) => ({
+    date,
+    count: Number(results[i].rows[0].count) || 0,
+  }));
+
+  const totalRequests = Number(results[results.length - 1].rows[0].count) || 0;
   const maxCount = Math.max(...days.map(d => d.count), 1);
   const todayUsage = days[days.length - 1].count;
-  const totalRequests = db.prepare('SELECT COUNT(*) as count FROM requests WHERE api_key = ?').get(apiKey) as { count: number };
 
   return `<div class="max-w-4xl mx-auto px-4 sm:px-6 py-12">
     <h1 class="text-3xl font-bold text-white mb-2">Dashboard</h1>
@@ -44,7 +56,7 @@ export function dashboardPage(apiKey: string): string {
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
       <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
         <p class="text-sm text-slate-400 mb-1">Plan</p>
-        <p class="text-xl font-bold text-white capitalize">${keyInfo.tier}</p>
+        <p class="text-xl font-bold text-white capitalize">${tier}</p>
       </div>
       <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
         <p class="text-sm text-slate-400 mb-1">Today</p>
@@ -52,7 +64,7 @@ export function dashboardPage(apiKey: string): string {
       </div>
       <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
         <p class="text-sm text-slate-400 mb-1">Total Requests</p>
-        <p class="text-xl font-bold text-white">${totalRequests.count.toLocaleString()}</p>
+        <p class="text-xl font-bold text-white">${totalRequests.toLocaleString()}</p>
       </div>
       <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
         <p class="text-sm text-slate-400 mb-1">API Key</p>
@@ -76,7 +88,7 @@ export function dashboardPage(apiKey: string): string {
       </div>
     </div>
 
-    ${keyInfo.tier === 'free' ? `
+    ${tier === 'free' ? `
     <!-- Upgrade CTA -->
     <div class="bg-gradient-to-r from-indigo-900/50 to-purple-900/50 border border-indigo-700/50 rounded-xl p-6 text-center">
       <h2 class="text-xl font-bold text-white mb-2">Need more screenshots?</h2>

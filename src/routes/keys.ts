@@ -86,7 +86,7 @@ keys.post('/', async (c) => {
       return c.json({ error: true, message: 'Invalid email address' }, 400);
     }
 
-    const keyInfo = registerApiKey(email);
+    const keyInfo = await registerApiKey(email);
 
     return c.json({
       key: keyInfo.key,
@@ -102,9 +102,9 @@ keys.post('/', async (c) => {
 });
 
 // Get API key usage
-keys.get('/:key/usage', (c) => {
+keys.get('/:key/usage', async (c) => {
   const key = c.req.param('key');
-  const usage = getKeyUsage(key);
+  const usage = await getKeyUsage(key);
 
   if (!usage) {
     return c.json({ error: true, message: 'API key not found' }, 404);

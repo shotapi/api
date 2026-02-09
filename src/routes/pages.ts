@@ -34,7 +34,7 @@ pages.get('/docs', (c) => {
 });
 
 // Dashboard page
-pages.get('/dashboard', (c) => {
+pages.get('/dashboard', async (c) => {
   const apiKey = c.req.query('key');
   if (!apiKey) {
     return c.html(layout({
@@ -56,7 +56,7 @@ pages.get('/dashboard', (c) => {
     title: 'Dashboard — ShotAPI',
     description: 'View your ShotAPI usage and manage your account.',
     path: '/dashboard',
-    content: dashboardPage(apiKey),
+    content: await dashboardPage(apiKey),
   }));
 });
 

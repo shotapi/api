@@ -1,5 +1,5 @@
 import { randomBytes } from 'crypto';
-import { getDb } from './db.js';
+import { getClient } from './db.js';
 
 export interface ApiKeyInfo {
   key: string;
@@ -15,13 +15,14 @@ export function generateApiKey(): string {
   return `sa_${randomBytes(16).toString('hex')}`;
 }
 
-export function registerApiKey(email: string): ApiKeyInfo {
-  const db = getDb();
+export async function registerApiKey(email: string): Promise<ApiKeyInfo> {
+  const db = getClient();
   const key = generateApiKey();
 
-  db.prepare(
-    'INSERT INTO api_keys (key, email, tier) VALUES (?, ?, ?)'
-  ).run(key, email, 'free');
+  await db.execute({
+    sql: 'INSERT INTO api_keys (key, email, tier) VALUES (?, ?, ?)',
+    args: [key, email, 'free'],
+  });
 
   return {
     key,
@@ -31,23 +32,24 @@ export function registerApiKey(email: string): ApiKeyInfo {
   };
 }
 
-export function validateApiKey(key: string): ApiKeyInfo | null {
-  const db = getDb();
+export async function validateApiKey(key: string): Promise<ApiKeyInfo | null> {
+  const db = getClient();
 
-  const row = db.prepare('SELECT * FROM api_keys WHERE key = ?').get(key) as any;
+  const result = await db.execute({ sql: 'SELECT * FROM api_keys WHERE key = ?', args: [key] });
+  const row = result.rows[0];
   if (!row) return null;
 
   // Update last_used_at
-  db.prepare('UPDATE api_keys SET last_used_at = datetime(\'now\') WHERE key = ?').run(key);
+  await db.execute({ sql: "UPDATE api_keys SET last_used_at = datetime('now') WHERE key = ?", args: [key] });
 
   return {
-    key: row.key,
-    email: row.email,
-    tier: row.tier,
-    stripeCustomerId: row.stripe_customer_id || undefined,
-    stripeSubscriptionId: row.stripe_subscription_id || undefined,
-    createdAt: row.created_at,
-    lastUsedAt: row.last_used_at || undefined,
+    key: row.key as string,
+    email: row.email as string,
+    tier: row.tier as 'free' | 'starter' | 'pro',
+    stripeCustomerId: (row.stripe_customer_id as string) || undefined,
+    stripeSubscriptionId: (row.stripe_subscription_id as string) || undefined,
+    createdAt: row.created_at as string,
+    lastUsedAt: (row.last_used_at as string) || undefined,
   };
 }
 
@@ -69,12 +71,13 @@ export function extractApiKey(query: Record<string, string>, headers: { get: (na
   return undefined;
 }
 
-export function getKeyUsage(key: string): { today: number; total: number; tier: string; dailyLimit: number } | null {
-  const db = getDb();
+export async function getKeyUsage(key: string): Promise<{ today: number; total: number; tier: string; dailyLimit: number } | null> {
+  const db = getClient();
   const today = new Date().toISOString().split('T')[0];
 
-  const keyInfo = db.prepare('SELECT tier FROM api_keys WHERE key = ?').get(key) as { tier: string } | undefined;
-  if (!keyInfo) return null;
+  const keyResult = await db.execute({ sql: 'SELECT tier FROM api_keys WHERE key = ?', args: [key] });
+  if (keyResult.rows.length === 0) return null;
+  const tier = keyResult.rows[0].tier as string;
 
   const DAILY_LIMITS: Record<string, number> = {
     free: 100,
@@ -82,18 +85,15 @@ export function getKeyUsage(key: string): { today: number; total: number; tier: 
     pro: 10000,
   };
 
-  const todayStats = db.prepare(
-    'SELECT COALESCE(SUM(request_count), 0) as count FROM daily_stats WHERE date = ? AND api_key = ?'
-  ).get(today, key) as { count: number };
-
-  const totalStats = db.prepare(
-    'SELECT COUNT(*) as count FROM requests WHERE api_key = ?'
-  ).get(key) as { count: number };
+  const results = await db.batch([
+    { sql: 'SELECT COALESCE(SUM(request_count), 0) as count FROM daily_stats WHERE date = ? AND api_key = ?', args: [today, key] },
+    { sql: 'SELECT COUNT(*) as count FROM requests WHERE api_key = ?', args: [key] },
+  ], 'read');
 
   return {
-    today: todayStats.count,
-    total: totalStats.count,
-    tier: keyInfo.tier,
-    dailyLimit: DAILY_LIMITS[keyInfo.tier] || 100,
+    today: Number(results[0].rows[0].count) || 0,
+    total: Number(results[1].rows[0].count) || 0,
+    tier,
+    dailyLimit: DAILY_LIMITS[tier] || 100,
   };
 }
