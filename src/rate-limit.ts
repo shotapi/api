@@ -1,4 +1,4 @@
-import { getDb } from './db.js';
+import { getClient } from './db.js';
 
 export type Tier = 'anonymous' | 'free' | 'starter' | 'pro';
 
@@ -13,23 +13,23 @@ export function getDailyLimit(tier: Tier): number {
   return DAILY_LIMITS[tier];
 }
 
-export function checkRateLimit(identifier: { ip: string; apiKey?: string; tier: Tier }): {
+export async function checkRateLimit(identifier: { ip: string; apiKey?: string; tier: Tier }): Promise<{
   allowed: boolean;
   remaining: number;
   limit: number;
   resetAt: number;
-} {
-  const db = getDb();
+}> {
+  const db = getClient();
   const today = new Date().toISOString().split('T')[0];
   const limit = DAILY_LIMITS[identifier.tier];
 
-  // Get today's request count for this identifier
   const key = identifier.apiKey || '';
-  const row = db.prepare(
-    'SELECT request_count FROM daily_stats WHERE date = ? AND api_key = ? AND ip = ?'
-  ).get(today, key, identifier.ip) as { request_count: number } | undefined;
+  const result = await db.execute({
+    sql: 'SELECT request_count FROM daily_stats WHERE date = ? AND api_key = ? AND ip = ?',
+    args: [today, key, identifier.ip],
+  });
 
-  const used = row?.request_count || 0;
+  const used = result.rows.length > 0 ? Number(result.rows[0].request_count) : 0;
   const remaining = Math.max(0, limit - used);
 
   // Reset at midnight UTC
@@ -45,14 +45,18 @@ export function checkRateLimit(identifier: { ip: string; apiKey?: string; tier: 
   };
 }
 
-export function getRateLimitStats(): { totalIPs: number; totalRequests: number } {
-  const db = getDb();
+export async function getRateLimitStats(): Promise<{ totalIPs: number; totalRequests: number }> {
+  const db = getClient();
   const today = new Date().toISOString().split('T')[0];
 
-  const stats = db.prepare(`
-    SELECT COUNT(DISTINCT ip) as totalIPs, COALESCE(SUM(request_count), 0) as totalRequests
-    FROM daily_stats WHERE date = ?
-  `).get(today) as { totalIPs: number; totalRequests: number };
+  const result = await db.execute({
+    sql: `SELECT COUNT(DISTINCT ip) as totalIPs, COALESCE(SUM(request_count), 0) as totalRequests
+      FROM daily_stats WHERE date = ?`,
+    args: [today],
+  });
 
-  return stats;
+  return {
+    totalIPs: Number(result.rows[0].totalIPs) || 0,
+    totalRequests: Number(result.rows[0].totalRequests) || 0,
+  };
 }

@@ -1,13 +1,14 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { generateApiKey, registerApiKey, validateApiKey, extractApiKey, getKeyUsage } from '../src/auth.js';
-import { closeDb } from '../src/db.js';
+import { initDb, resetClient } from '../src/db.js';
 
 // Use in-memory DB for tests
-process.env.DB_PATH = ':memory:';
+process.env.TURSO_DATABASE_URL = ':memory:';
 
 describe('Auth', () => {
-  afterEach(() => {
-    closeDb();
+  beforeEach(async () => {
+    resetClient();
+    await initDb();
   });
 
   describe('generateApiKey', () => {
@@ -23,8 +24,8 @@ describe('Auth', () => {
   });
 
   describe('registerApiKey', () => {
-    it('registers a new key', () => {
-      const result = registerApiKey('test@example.com');
+    it('registers a new key', async () => {
+      const result = await registerApiKey('test@example.com');
       expect(result.key).toMatch(/^sa_/);
       expect(result.email).toBe('test@example.com');
       expect(result.tier).toBe('free');
@@ -32,15 +33,15 @@ describe('Auth', () => {
   });
 
   describe('validateApiKey', () => {
-    it('validates existing key', () => {
-      const registered = registerApiKey('test@example.com');
-      const validated = validateApiKey(registered.key);
+    it('validates existing key', async () => {
+      const registered = await registerApiKey('test@example.com');
+      const validated = await validateApiKey(registered.key);
       expect(validated).not.toBeNull();
       expect(validated!.email).toBe('test@example.com');
     });
 
-    it('returns null for invalid key', () => {
-      const result = validateApiKey('sa_nonexistent');
+    it('returns null for invalid key', async () => {
+      const result = await validateApiKey('sa_nonexistent');
       expect(result).toBeNull();
     });
   });
@@ -85,17 +86,17 @@ describe('Auth', () => {
   });
 
   describe('getKeyUsage', () => {
-    it('returns usage for existing key', () => {
-      const registered = registerApiKey('test@example.com');
-      const usage = getKeyUsage(registered.key);
+    it('returns usage for existing key', async () => {
+      const registered = await registerApiKey('test@example.com');
+      const usage = await getKeyUsage(registered.key);
       expect(usage).not.toBeNull();
       expect(usage!.tier).toBe('free');
       expect(usage!.dailyLimit).toBe(100);
       expect(usage!.today).toBe(0);
     });
 
-    it('returns null for non-existent key', () => {
-      const usage = getKeyUsage('sa_nonexistent');
+    it('returns null for non-existent key', async () => {
+      const usage = await getKeyUsage('sa_nonexistent');
       expect(usage).toBeNull();
     });
   });
