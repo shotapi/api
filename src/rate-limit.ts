@@ -1,52 +1,58 @@
-// Simple in-memory rate limiter
-// Resets daily, 100 requests per IP
+import { getDb } from './db.js';
 
-interface RateLimitEntry {
-  count: number;
+export type Tier = 'anonymous' | 'free' | 'starter' | 'pro';
+
+const DAILY_LIMITS: Record<Tier, number> = {
+  anonymous: 10,
+  free: 100,
+  starter: 2500,
+  pro: 10000,
+};
+
+export function getDailyLimit(tier: Tier): number {
+  return DAILY_LIMITS[tier];
+}
+
+export function checkRateLimit(identifier: { ip: string; apiKey?: string; tier: Tier }): {
+  allowed: boolean;
+  remaining: number;
+  limit: number;
   resetAt: number;
-}
+} {
+  const db = getDb();
+  const today = new Date().toISOString().split('T')[0];
+  const limit = DAILY_LIMITS[identifier.tier];
 
-const limits = new Map<string, RateLimitEntry>();
+  // Get today's request count for this identifier
+  const key = identifier.apiKey || '';
+  const row = db.prepare(
+    'SELECT request_count FROM daily_stats WHERE date = ? AND api_key = ? AND ip = ?'
+  ).get(today, key, identifier.ip) as { request_count: number } | undefined;
 
-const DAILY_LIMIT = 100;
-const DAY_MS = 24 * 60 * 60 * 1000;
+  const used = row?.request_count || 0;
+  const remaining = Math.max(0, limit - used);
 
-export function checkRateLimit(ip: string): { allowed: boolean; remaining: number; resetAt: number } {
-  const now = Date.now();
-  const entry = limits.get(ip);
+  // Reset at midnight UTC
+  const tomorrow = new Date();
+  tomorrow.setUTCHours(24, 0, 0, 0);
+  const resetAt = tomorrow.getTime();
 
-  // Clean up expired entries periodically (every 1000 checks)
-  if (Math.random() < 0.001) {
-    cleanupExpired(now);
-  }
-
-  if (!entry || now >= entry.resetAt) {
-    // New or expired entry
-    const resetAt = now + DAY_MS;
-    limits.set(ip, { count: 1, resetAt });
-    return { allowed: true, remaining: DAILY_LIMIT - 1, resetAt };
-  }
-
-  if (entry.count >= DAILY_LIMIT) {
-    return { allowed: false, remaining: 0, resetAt: entry.resetAt };
-  }
-
-  entry.count++;
-  return { allowed: true, remaining: DAILY_LIMIT - entry.count, resetAt: entry.resetAt };
-}
-
-function cleanupExpired(now: number): void {
-  for (const [ip, entry] of limits.entries()) {
-    if (now >= entry.resetAt) {
-      limits.delete(ip);
-    }
-  }
+  return {
+    allowed: used < limit,
+    remaining,
+    limit,
+    resetAt,
+  };
 }
 
 export function getRateLimitStats(): { totalIPs: number; totalRequests: number } {
-  let totalRequests = 0;
-  for (const entry of limits.values()) {
-    totalRequests += entry.count;
-  }
-  return { totalIPs: limits.size, totalRequests };
+  const db = getDb();
+  const today = new Date().toISOString().split('T')[0];
+
+  const stats = db.prepare(`
+    SELECT COUNT(DISTINCT ip) as totalIPs, COALESCE(SUM(request_count), 0) as totalRequests
+    FROM daily_stats WHERE date = ?
+  `).get(today) as { totalIPs: number; totalRequests: number };
+
+  return stats;
 }

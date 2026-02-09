@@ -15,6 +15,11 @@ primary_region = "sin"  # Singapore - close to India
 [env]
   NODE_ENV = "production"
   PORT = "3000"
+  DB_PATH = "/data/shotapi.db"
+
+[mounts]
+  source = "shotapi_data"
+  destination = "/data"
 
 [[vm]]
   memory = "1gb"

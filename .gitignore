@@ -22,3 +22,8 @@ npm-debug.log*
 
 # Test coverage
 coverage/
+
+# SQLite database
+*.db
+*.db-wal
+*.db-shm
