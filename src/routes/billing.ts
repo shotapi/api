@@ -10,14 +10,28 @@ function getStripe(): Stripe {
   return new Stripe(key, { apiVersion: '2026-01-28.clover' });
 }
 
+// Map plan names to Stripe price IDs (set via env vars)
+function getPriceId(plan: string): string | null {
+  const prices: Record<string, string | undefined> = {
+    starter: process.env.STRIPE_STARTER_PRICE_ID,
+    pro: process.env.STRIPE_PRO_PRICE_ID,
+  };
+  return prices[plan] || null;
+}
+
 // Create Checkout Session
 billing.post('/checkout', async (c) => {
   try {
     const body = await c.req.json();
-    const { api_key, price_id } = body;
+    const { api_key, plan } = body;
 
-    if (!api_key || !price_id) {
-      return c.json({ error: true, message: 'api_key and price_id are required' }, 400);
+    if (!api_key || !plan) {
+      return c.json({ error: true, message: 'api_key and plan are required' }, 400);
+    }
+
+    const priceId = getPriceId(plan);
+    if (!priceId) {
+      return c.json({ error: true, message: `Unknown plan: ${plan}. Use "starter" or "pro".` }, 400);
     }
 
     // Verify API key exists
@@ -32,7 +46,7 @@ billing.post('/checkout', async (c) => {
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       customer_email: email,
-      line_items: [{ price: price_id, quantity: 1 }],
+      line_items: [{ price: priceId, quantity: 1 }],
       success_url: `https://shotapi.io/dashboard?key=${api_key}&upgraded=true`,
       cancel_url: `https://shotapi.io/pricing`,
       metadata: { api_key },

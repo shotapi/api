@@ -35,6 +35,8 @@ keys.get('/', (c) => {
           <a href="/docs" class="text-sm text-indigo-400 hover:text-indigo-300 transition">Read the docs</a>
           <span class="text-slate-700">|</span>
           <a id="dashboard-link" href="/dashboard" class="text-sm text-indigo-400 hover:text-indigo-300 transition">View dashboard</a>
+          <span class="text-slate-700">|</span>
+          <a id="upgrade-link" href="/dashboard" class="text-sm text-emerald-400 hover:text-emerald-300 transition">Upgrade plan</a>
         </div>
       </div>
 
@@ -57,6 +59,7 @@ keys.get('/', (c) => {
             if (!res.ok) throw new Error(data.message || 'Failed to create key');
             document.getElementById('api-key').textContent = data.key;
             document.getElementById('dashboard-link').href = '/dashboard?key=' + data.key;
+            document.getElementById('upgrade-link').href = '/dashboard?key=' + data.key;
             document.getElementById('key-form').classList.add('hidden');
             document.getElementById('key-result').classList.remove('hidden');
           } catch (err) {
