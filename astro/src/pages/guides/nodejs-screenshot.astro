@@ -1,0 +1,502 @@
+---
+import Layout from "../../layouts/Layout.astro";
+
+const shotapiCode = `<span class="text-violet-400">const</span> <span class="text-sky-300">fetch</span> = <span class="text-violet-400">require</span>(<span class="text-amber-300">'node-fetch'</span>);
+<span class="text-violet-400">const</span> <span class="text-sky-300">fs</span> = <span class="text-violet-400">require</span>(<span class="text-amber-300">'fs'</span>);
+
+<span class="text-violet-400">async function</span> <span class="text-emerald-400">takeScreenshot</span>(<span class="text-sky-300">url</span>) &#123;
+  <span class="text-violet-400">const</span> <span class="text-sky-300">apiUrl</span> = <span class="text-amber-300">\`https://shotapi.io/api/screenshot?url=\$&#123;<span class="text-emerald-400">encodeURIComponent</span>(<span class="text-sky-300">url</span>)&#125;&amp;format=png\`</span>;
+
+  <span class="text-violet-400">const</span> <span class="text-sky-300">response</span> = <span class="text-violet-400">await</span> <span class="text-emerald-400">fetch</span>(<span class="text-sky-300">apiUrl</span>, &#123;
+    <span class="text-sky-300">headers</span>: &#123;
+      <span class="text-amber-300">'X-API-Key'</span>: <span class="text-sky-300">process</span>.<span class="text-sky-300">env</span>.<span class="text-sky-300">SHOTAPI_KEY</span>
+    &#125;
+  &#125;);
+
+  <span class="text-violet-400">if</span> (!<span class="text-sky-300">response</span>.<span class="text-sky-300">ok</span>) &#123;
+    <span class="text-violet-400">throw new</span> <span class="text-emerald-400">Error</span>(<span class="text-amber-300">\`Failed: \$&#123;<span class="text-sky-300">response</span>.<span class="text-sky-300">status</span>&#125;\`</span>);
+  &#125;
+
+  <span class="text-violet-400">const</span> <span class="text-sky-300">buffer</span> = <span class="text-violet-400">await</span> <span class="text-sky-300">response</span>.<span class="text-emerald-400">buffer</span>();
+  <span class="text-sky-300">fs</span>.<span class="text-emerald-400">writeFileSync</span>(<span class="text-amber-300">'screenshot.png'</span>, <span class="text-sky-300">buffer</span>);
+  <span class="text-sky-300">console</span>.<span class="text-emerald-400">log</span>(<span class="text-amber-300">'Screenshot saved!'</span>);
+&#125;
+
+<span class="text-emerald-400">takeScreenshot</span>(<span class="text-amber-300">'https://example.com'</span>);`;
+
+const puppeteerGuideCode = `<span class="text-violet-400">const</span> <span class="text-sky-300">puppeteer</span> = <span class="text-violet-400">require</span>(<span class="text-amber-300">'puppeteer'</span>);
+
+<span class="text-violet-400">async function</span> <span class="text-emerald-400">takeScreenshot</span>(<span class="text-sky-300">url</span>) &#123;
+  <span class="text-violet-400">let</span> <span class="text-sky-300">browser</span>;
+  <span class="text-violet-400">try</span> &#123;
+    <span class="text-sky-300">browser</span> = <span class="text-violet-400">await</span> <span class="text-sky-300">puppeteer</span>.<span class="text-emerald-400">launch</span>(&#123;
+      <span class="text-sky-300">headless</span>: <span class="text-violet-400">true</span>,
+      <span class="text-sky-300">args</span>: [<span class="text-amber-300">'--no-sandbox'</span>, <span class="text-amber-300">'--disable-setuid-sandbox'</span>]
+    &#125;);
+
+    <span class="text-violet-400">const</span> <span class="text-sky-300">page</span> = <span class="text-violet-400">await</span> <span class="text-sky-300">browser</span>.<span class="text-emerald-400">newPage</span>();
+    <span class="text-violet-400">await</span> <span class="text-sky-300">page</span>.<span class="text-emerald-400">setViewport</span>(&#123; <span class="text-sky-300">width</span>: <span class="text-amber-300">1280</span>, <span class="text-sky-300">height</span>: <span class="text-amber-300">720</span> &#125;);
+    <span class="text-violet-400">await</span> <span class="text-sky-300">page</span>.<span class="text-emerald-400">goto</span>(<span class="text-sky-300">url</span>, &#123; <span class="text-sky-300">waitUntil</span>: <span class="text-amber-300">'networkidle0'</span> &#125;);
+
+    <span class="text-violet-400">await</span> <span class="text-sky-300">page</span>.<span class="text-emerald-400">screenshot</span>(&#123;
+      <span class="text-sky-300">path</span>: <span class="text-amber-300">'screenshot.png'</span>,
+      <span class="text-sky-300">type</span>: <span class="text-amber-300">'png'</span>
+    &#125;);
+
+    <span class="text-sky-300">console</span>.<span class="text-emerald-400">log</span>(<span class="text-amber-300">'Screenshot saved!'</span>);
+  &#125; <span class="text-violet-400">finally</span> &#123;
+    <span class="text-violet-400">if</span> (<span class="text-sky-300">browser</span>) <span class="text-violet-400">await</span> <span class="text-sky-300">browser</span>.<span class="text-emerald-400">close</span>();
+  &#125;
+&#125;
+
+<span class="text-emerald-400">takeScreenshot</span>(<span class="text-amber-300">'https://example.com'</span>);`;
+
+const playwrightCode = `<span class="text-violet-400">const</span> &#123; <span class="text-sky-300">chromium</span> &#125; = <span class="text-violet-400">require</span>(<span class="text-amber-300">'@playwright/test'</span>);
+
+<span class="text-violet-400">async function</span> <span class="text-emerald-400">takeScreenshot</span>(<span class="text-sky-300">url</span>) &#123;
+  <span class="text-violet-400">const</span> <span class="text-sky-300">browser</span> = <span class="text-violet-400">await</span> <span class="text-sky-300">chromium</span>.<span class="text-emerald-400">launch</span>();
+  <span class="text-violet-400">const</span> <span class="text-sky-300">page</span> = <span class="text-violet-400">await</span> <span class="text-sky-300">browser</span>.<span class="text-emerald-400">newPage</span>();
+
+  <span class="text-violet-400">await</span> <span class="text-sky-300">page</span>.<span class="text-emerald-400">goto</span>(<span class="text-sky-300">url</span>);
+  <span class="text-violet-400">await</span> <span class="text-sky-300">page</span>.<span class="text-emerald-400">screenshot</span>(&#123; <span class="text-sky-300">path</span>: <span class="text-amber-300">'screenshot.png'</span> &#125;);
+
+  <span class="text-violet-400">await</span> <span class="text-sky-300">browser</span>.<span class="text-emerald-400">close</span>();
+  <span class="text-sky-300">console</span>.<span class="text-emerald-400">log</span>(<span class="text-amber-300">'Screenshot saved!'</span>);
+&#125;
+
+<span class="text-emerald-400">takeScreenshot</span>(<span class="text-amber-300">'https://example.com'</span>);`;
+
+const typescriptCode = `<span class="text-violet-400">import</span> <span class="text-sky-300">fetch</span> <span class="text-violet-400">from</span> <span class="text-amber-300">'node-fetch'</span>;
+<span class="text-violet-400">import</span> <span class="text-sky-300">fs</span> <span class="text-violet-400">from</span> <span class="text-amber-300">'fs/promises'</span>;
+
+<span class="text-violet-400">interface</span> <span class="text-sky-300">ScreenshotOptions</span> &#123;
+  <span class="text-sky-300">url</span>: <span class="text-emerald-400">string</span>;
+  <span class="text-sky-300">format</span>?: <span class="text-amber-300">'png'</span> | <span class="text-amber-300">'jpeg'</span> | <span class="text-amber-300">'webp'</span> | <span class="text-amber-300">'pdf'</span>;
+  <span class="text-sky-300">width</span>?: <span class="text-emerald-400">number</span>;
+  <span class="text-sky-300">height</span>?: <span class="text-emerald-400">number</span>;
+  <span class="text-sky-300">fullPage</span>?: <span class="text-emerald-400">boolean</span>;
+&#125;
+
+<span class="text-violet-400">async function</span> <span class="text-emerald-400">takeScreenshot</span>(
+  <span class="text-sky-300">options</span>: <span class="text-sky-300">ScreenshotOptions</span>,
+  <span class="text-sky-300">outputPath</span>: <span class="text-emerald-400">string</span>
+): <span class="text-emerald-400">Promise</span>&lt;<span class="text-violet-400">void</span>&gt; &#123;
+  <span class="text-violet-400">const</span> <span class="text-sky-300">params</span> = <span class="text-violet-400">new</span> <span class="text-emerald-400">URLSearchParams</span>(&#123;
+    <span class="text-sky-300">url</span>: <span class="text-sky-300">options</span>.<span class="text-sky-300">url</span>,
+    <span class="text-sky-300">format</span>: <span class="text-sky-300">options</span>.<span class="text-sky-300">format</span> || <span class="text-amber-300">'png'</span>,
+    ...<span class="text-sky-300">options</span>.<span class="text-sky-300">width</span> &amp;&amp; &#123; <span class="text-sky-300">width</span>: <span class="text-sky-300">options</span>.<span class="text-sky-300">width</span>.<span class="text-emerald-400">toString</span>() &#125;,
+    ...<span class="text-sky-300">options</span>.<span class="text-sky-300">height</span> &amp;&amp; &#123; <span class="text-sky-300">height</span>: <span class="text-sky-300">options</span>.<span class="text-sky-300">height</span>.<span class="text-emerald-400">toString</span>() &#125;,
+    ...<span class="text-sky-300">options</span>.<span class="text-sky-300">fullPage</span> &amp;&amp; &#123; <span class="text-sky-300">fullPage</span>: <span class="text-amber-300">'true'</span> &#125;,
+  &#125;);
+
+  <span class="text-violet-400">const</span> <span class="text-sky-300">apiUrl</span> = <span class="text-amber-300">\`https://shotapi.io/api/screenshot?\$&#123;<span class="text-sky-300">params</span>&#125;\`</span>;
+
+  <span class="text-violet-400">try</span> &#123;
+    <span class="text-violet-400">const</span> <span class="text-sky-300">response</span> = <span class="text-violet-400">await</span> <span class="text-emerald-400">fetch</span>(<span class="text-sky-300">apiUrl</span>, &#123;
+      <span class="text-sky-300">headers</span>: &#123;
+        <span class="text-amber-300">'X-API-Key'</span>: <span class="text-sky-300">process</span>.<span class="text-sky-300">env</span>.<span class="text-sky-300">SHOTAPI_KEY</span> || <span class="text-amber-300">''</span>,
+      &#125;,
+    &#125;);
+
+    <span class="text-violet-400">if</span> (!<span class="text-sky-300">response</span>.<span class="text-sky-300">ok</span>) &#123;
+      <span class="text-violet-400">throw new</span> <span class="text-emerald-400">Error</span>(
+        <span class="text-amber-300">\`Screenshot failed: \$&#123;<span class="text-sky-300">response</span>.<span class="text-sky-300">status</span>&#125; \$&#123;<span class="text-sky-300">response</span>.<span class="text-sky-300">statusText</span>&#125;\`</span>
+      );
+    &#125;
+
+    <span class="text-violet-400">const</span> <span class="text-sky-300">buffer</span> = <span class="text-violet-400">await</span> <span class="text-sky-300">response</span>.<span class="text-emerald-400">buffer</span>();
+    <span class="text-violet-400">await</span> <span class="text-sky-300">fs</span>.<span class="text-emerald-400">writeFile</span>(<span class="text-sky-300">outputPath</span>, <span class="text-sky-300">buffer</span>);
+
+    <span class="text-sky-300">console</span>.<span class="text-emerald-400">log</span>(<span class="text-amber-300">\`Screenshot saved to \$&#123;<span class="text-sky-300">outputPath</span>&#125;\`</span>);
+  &#125; <span class="text-violet-400">catch</span> (<span class="text-sky-300">error</span>) &#123;
+    <span class="text-sky-300">console</span>.<span class="text-emerald-400">error</span>(<span class="text-amber-300">'Screenshot error:'</span>, <span class="text-sky-300">error</span>);
+    <span class="text-violet-400">throw</span> <span class="text-sky-300">error</span>;
+  &#125;
+&#125;
+
+<span class="text-comment">// Usage</span>
+<span class="text-emerald-400">takeScreenshot</span>(
+  &#123;
+    <span class="text-sky-300">url</span>: <span class="text-amber-300">'https://example.com'</span>,
+    <span class="text-sky-300">format</span>: <span class="text-amber-300">'webp'</span>,
+    <span class="text-sky-300">width</span>: <span class="text-amber-300">1920</span>,
+    <span class="text-sky-300">height</span>: <span class="text-amber-300">1080</span>,
+    <span class="text-sky-300">fullPage</span>: <span class="text-violet-400">true</span>,
+  &#125;,
+  <span class="text-amber-300">'screenshot.webp'</span>
+);`;
+---
+
+<Layout
+  title="How to Take Screenshots in Node.js — The Complete Guide"
+  description="Learn how to capture website screenshots in Node.js using ShotAPI, Puppeteer, and Playwright. Code examples included."
+  path="/guides/nodejs-screenshot"
+>
+  <script type="application/ld+json" set:html={JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "How to Take Screenshots in Node.js — The Complete Guide",
+    "description": "Learn how to capture website screenshots in Node.js using ShotAPI, Puppeteer, and Playwright. Code examples included.",
+    "author": {
+      "@type": "Organization",
+      "name": "ShotAPI"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "ShotAPI",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://shotapi.io/logo.png"
+      }
+    },
+    "datePublished": "2026-02-10",
+    "dateModified": "2026-02-10"
+  })} />
+
+  <div class="container mx-auto px-4 py-12 max-w-5xl">
+    <!-- Breadcrumbs -->
+    <nav class="mb-8 text-sm text-muted-foreground">
+      <a href="/" class="hover:text-foreground">Home</a>
+      <span class="mx-2">/</span>
+      <a href="/guides" class="hover:text-foreground">Guides</a>
+      <span class="mx-2">/</span>
+      <span class="text-foreground">Node.js Screenshots</span>
+    </nav>
+
+    <!-- Hero -->
+    <div class="mb-16">
+      <h1 class="text-4xl md:text-5xl font-bold text-foreground mb-6">
+        How to Take Screenshots in Node.js
+      </h1>
+      <p class="text-xl text-muted-foreground mb-8">
+        Learn how to capture website screenshots in Node.js using ShotAPI, Puppeteer, and Playwright. Complete code examples included.
+      </p>
+      <div class="text-sm text-muted-foreground">
+        Published February 10, 2026
+      </div>
+    </div>
+
+    <!-- Three Approaches Comparison -->
+    <section class="mb-16">
+      <h2 class="text-3xl font-bold text-foreground mb-8">
+        Three Approaches
+      </h2>
+      <div class="rounded-lg border border-border overflow-hidden">
+        <table class="w-full">
+          <thead class="bg-muted">
+            <tr>
+              <th class="text-left p-4 font-bold text-foreground">Approach</th>
+              <th class="text-left p-4 font-bold text-foreground">Best For</th>
+              <th class="text-left p-4 font-bold text-foreground">Complexity</th>
+              <th class="text-left p-4 font-bold text-foreground">Setup Time</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-border">
+            <tr>
+              <td class="p-4 text-foreground font-medium">ShotAPI</td>
+              <td class="p-4 text-muted-foreground">Simple screenshots, production apps</td>
+              <td class="p-4"><span class="text-emerald-500">Low</span></td>
+              <td class="p-4"><span class="text-emerald-500">5 minutes</span></td>
+            </tr>
+            <tr class="bg-muted/30">
+              <td class="p-4 text-foreground font-medium">Puppeteer</td>
+              <td class="p-4 text-muted-foreground">Complex automation, private URLs</td>
+              <td class="p-4 text-muted-foreground">High</td>
+              <td class="p-4 text-muted-foreground">Hours</td>
+            </tr>
+            <tr>
+              <td class="p-4 text-foreground font-medium">Playwright</td>
+              <td class="p-4 text-muted-foreground">Testing, multi-browser support</td>
+              <td class="p-4 text-muted-foreground">High</td>
+              <td class="p-4 text-muted-foreground">Hours</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Approach 1: ShotAPI -->
+    <section class="mb-16">
+      <div class="mb-8">
+        <h2 class="text-3xl font-bold text-foreground mb-4">
+          Approach 1: ShotAPI (Recommended)
+        </h2>
+        <p class="text-muted-foreground mb-6">
+          The simplest way to take screenshots. No infrastructure, no browser management, no headaches.
+        </p>
+      </div>
+
+      <pre class="border-none bg-transparent p-0 text-sm mb-6"><code class="block bg-zinc-950 p-4 rounded-lg overflow-x-auto" set:html={shotapiCode}></code></pre>
+
+      <div class="rounded-lg border border-border bg-card p-6">
+        <h3 class="text-lg font-bold text-foreground mb-3">Pros</h3>
+        <ul class="space-y-2 text-muted-foreground">
+          <li class="flex items-start gap-3">
+            <span class="text-emerald-500 mt-1">✓</span>
+            <span>No dependencies to install (just node-fetch)</span>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="text-emerald-500 mt-1">✓</span>
+            <span>No infrastructure to manage</span>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="text-emerald-500 mt-1">✓</span>
+            <span>Works in serverless environments (Lambda, Vercel, etc.)</span>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="text-emerald-500 mt-1">✓</span>
+            <span>100 free screenshots per day</span>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Approach 2: Puppeteer -->
+    <section class="mb-16">
+      <div class="mb-8">
+        <h2 class="text-3xl font-bold text-foreground mb-4">
+          Approach 2: Puppeteer
+        </h2>
+        <p class="text-muted-foreground mb-6">
+          Full browser automation. Use when you need complex interactions or screenshots behind authentication.
+        </p>
+      </div>
+
+      <div class="mb-6">
+        <h3 class="text-xl font-bold text-foreground mb-4">Install</h3>
+        <pre class="border-none bg-transparent p-0 text-sm"><code class="block bg-zinc-950 p-4 rounded-lg overflow-x-auto"><span class="text-emerald-400">npm install</span> <span class="text-amber-300">puppeteer</span></code></pre>
+      </div>
+
+      <div class="mb-6">
+        <h3 class="text-xl font-bold text-foreground mb-4">Code</h3>
+        <pre class="border-none bg-transparent p-0 text-sm"><code class="block bg-zinc-950 p-4 rounded-lg overflow-x-auto" set:html={puppeteerGuideCode}></code></pre>
+      </div>
+
+      <div class="rounded-lg border border-border bg-card p-6">
+        <h3 class="text-lg font-bold text-foreground mb-3">Pros & Cons</h3>
+        <div class="grid md:grid-cols-2 gap-6">
+          <div>
+            <h4 class="font-bold text-foreground mb-2">Pros</h4>
+            <ul class="space-y-2 text-sm text-muted-foreground">
+              <li class="flex items-start gap-2">
+                <span class="text-emerald-500">✓</span>
+                <span>Full browser automation</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <span class="text-emerald-500">✓</span>
+                <span>Works with auth/VPN</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <span class="text-emerald-500">✓</span>
+                <span>Inject custom JavaScript</span>
+              </li>
+            </ul>
+          </div>
+          <div>
+            <h4 class="font-bold text-foreground mb-2">Cons</h4>
+            <ul class="space-y-2 text-sm text-muted-foreground">
+              <li class="flex items-start gap-2">
+                <span class="text-muted-foreground">✗</span>
+                <span>Complex setup</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <span class="text-muted-foreground">✗</span>
+                <span>High memory usage</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <span class="text-muted-foreground">✗</span>
+                <span>Ongoing maintenance</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Approach 3: Playwright -->
+    <section class="mb-16">
+      <div class="mb-8">
+        <h2 class="text-3xl font-bold text-foreground mb-4">
+          Approach 3: Playwright
+        </h2>
+        <p class="text-muted-foreground mb-6">
+          Multi-browser automation framework. Best for testing and cross-browser screenshots.
+        </p>
+      </div>
+
+      <div class="mb-6">
+        <h3 class="text-xl font-bold text-foreground mb-4">Install</h3>
+        <pre class="border-none bg-transparent p-0 text-sm"><code class="block bg-zinc-950 p-4 rounded-lg overflow-x-auto"><span class="text-emerald-400">npm install</span> <span class="text-amber-300">@playwright/test</span></code></pre>
+      </div>
+
+      <div class="mb-6">
+        <h3 class="text-xl font-bold text-foreground mb-4">Code</h3>
+        <pre class="border-none bg-transparent p-0 text-sm"><code class="block bg-zinc-950 p-4 rounded-lg overflow-x-auto" set:html={playwrightCode}></code></pre>
+      </div>
+
+      <div class="rounded-lg border border-border bg-card p-6">
+        <h3 class="text-lg font-bold text-foreground mb-3">Pros & Cons</h3>
+        <div class="grid md:grid-cols-2 gap-6">
+          <div>
+            <h4 class="font-bold text-foreground mb-2">Pros</h4>
+            <ul class="space-y-2 text-sm text-muted-foreground">
+              <li class="flex items-start gap-2">
+                <span class="text-emerald-500">✓</span>
+                <span>Multi-browser (Chrome, Firefox, Safari)</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <span class="text-emerald-500">✓</span>
+                <span>Better for testing</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <span class="text-emerald-500">✓</span>
+                <span>Modern API</span>
+              </li>
+            </ul>
+          </div>
+          <div>
+            <h4 class="font-bold text-foreground mb-2">Cons</h4>
+            <ul class="space-y-2 text-sm text-muted-foreground">
+              <li class="flex items-start gap-2">
+                <span class="text-muted-foreground">✗</span>
+                <span>Large download (browsers)</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <span class="text-muted-foreground">✗</span>
+                <span>High memory usage</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <span class="text-muted-foreground">✗</span>
+                <span>Overkill for simple screenshots</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- When to Use Which -->
+    <section class="mb-16">
+      <h2 class="text-3xl font-bold text-foreground mb-8">
+        When to Use Which
+      </h2>
+      <div class="grid md:grid-cols-3 gap-6">
+        <div class="rounded-lg border border-border bg-card p-6">
+          <h3 class="text-xl font-bold text-foreground mb-4">Use ShotAPI</h3>
+          <ul class="space-y-2 text-sm text-muted-foreground">
+            <li class="flex items-start gap-2">
+              <span class="text-emerald-500">✓</span>
+              <span>Production apps</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-emerald-500">✓</span>
+              <span>Serverless/Lambda</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-emerald-500">✓</span>
+              <span>Simple screenshots</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-emerald-500">✓</span>
+              <span>Public URLs</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-emerald-500">✓</span>
+              <span>No infrastructure</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="rounded-lg border border-border bg-card p-6">
+          <h3 class="text-xl font-bold text-foreground mb-4">Use Puppeteer</h3>
+          <ul class="space-y-2 text-sm text-muted-foreground">
+            <li class="flex items-start gap-2">
+              <span class="text-emerald-500">✓</span>
+              <span>Complex automation</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-emerald-500">✓</span>
+              <span>Behind auth/VPN</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-emerald-500">✓</span>
+              <span>Custom JavaScript</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-emerald-500">✓</span>
+              <span>Scraping data</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-emerald-500">✓</span>
+              <span>Form interactions</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="rounded-lg border border-border bg-card p-6">
+          <h3 class="text-xl font-bold text-foreground mb-4">Use Playwright</h3>
+          <ul class="space-y-2 text-sm text-muted-foreground">
+            <li class="flex items-start gap-2">
+              <span class="text-emerald-500">✓</span>
+              <span>E2E testing</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-emerald-500">✓</span>
+              <span>Multi-browser</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-emerald-500">✓</span>
+              <span>Cross-platform tests</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-emerald-500">✓</span>
+              <span>Visual regression</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-emerald-500">✓</span>
+              <span>Test automation</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Production Error Handling -->
+    <section class="mb-16">
+      <h2 class="text-3xl font-bold text-foreground mb-8">
+        Production-Ready Error Handling
+      </h2>
+      <p class="text-muted-foreground mb-6">
+        Here's a production-ready example with TypeScript and proper error handling:
+      </p>
+
+      <pre class="border-none bg-transparent p-0 text-sm"><code class="block bg-zinc-950 p-4 rounded-lg overflow-x-auto" set:html={typescriptCode}></code></pre>
+    </section>
+
+    <!-- CTA -->
+    <section class="text-center">
+      <div class="rounded-lg border border-border bg-card p-12">
+        <h2 class="text-3xl font-bold text-foreground mb-4">
+          Start Taking Screenshots in Node.js
+        </h2>
+        <p class="text-xl text-muted-foreground mb-8">
+          Get your API key and start with 100 free screenshots per day.
+        </p>
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+          <a
+            href="/docs"
+            class="inline-block px-8 py-4 rounded-lg bg-primary text-primary-foreground font-bold hover:opacity-90 transition-opacity"
+          >
+            View Documentation
+          </a>
+          <a
+            href="https://dashboard.shotapi.io"
+            class="inline-block px-8 py-4 rounded-lg border border-border text-foreground font-bold hover:bg-muted transition-colors"
+          >
+            Get API Key
+          </a>
+        </div>
+      </div>
+    </section>
+  </div>
+</Layout>

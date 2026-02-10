@@ -8,7 +8,6 @@ import { logRequest, getStats } from './db.js';
 import { extractApiKey, validateApiKey } from './auth.js';
 import keys from './routes/keys.js';
 import billing from './routes/billing.js';
-import pages from './routes/pages.js';
 
 const app = new Hono();
 
@@ -141,9 +140,5 @@ app.post('/take', async (c) => {
 // --- Billing (Stripe) ---
 
 app.route('/billing', billing);
-
-// --- HTML pages (must be LAST — catch-all routes) ---
-
-app.route('/', pages);
 
 export default app;

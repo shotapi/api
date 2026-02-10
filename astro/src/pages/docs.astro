@@ -1,0 +1,376 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout
+  title="API Documentation — ShotAPI"
+  description="Complete API reference for ShotAPI. Authentication, parameters, code examples in curl, Node.js, and Python."
+  path="/docs"
+>
+  <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+    <div class="grid grid-cols-1 gap-8 lg:grid-cols-[240px_1fr]">
+      <!-- Table of Contents -->
+      <nav class="lg:sticky lg:top-8 lg:h-fit">
+        <div class="rounded-lg border border-border bg-card p-4">
+          <h2 class="mb-3 text-sm font-semibold text-foreground">On This Page</h2>
+          <ul class="space-y-2 text-sm">
+            <li><a href="#quick-start" class="text-muted-foreground hover:text-foreground">Quick Start</a></li>
+            <li><a href="#authentication" class="text-muted-foreground hover:text-foreground">Authentication</a></li>
+            <li><a href="#parameters" class="text-muted-foreground hover:text-foreground">Parameters</a></li>
+            <li><a href="#response" class="text-muted-foreground hover:text-foreground">Response</a></li>
+            <li><a href="#error-codes" class="text-muted-foreground hover:text-foreground">Error Codes</a></li>
+            <li><a href="#rate-limits" class="text-muted-foreground hover:text-foreground">Rate Limits</a></li>
+            <li><a href="#examples" class="text-muted-foreground hover:text-foreground">Code Examples</a></li>
+          </ul>
+        </div>
+      </nav>
+
+      <!-- Main Content -->
+      <div class="space-y-12">
+        <div>
+          <h1 class="mb-4 text-4xl font-bold text-foreground">API Documentation</h1>
+          <p class="text-lg text-muted-foreground">
+            Complete reference for the ShotAPI screenshot API. Capture pixel-perfect screenshots with a simple HTTP request.
+          </p>
+        </div>
+
+        <!-- Quick Start -->
+        <section id="quick-start">
+          <h2 class="mb-4 text-2xl font-bold text-foreground">Quick Start</h2>
+          <p class="mb-4 text-muted-foreground">
+            The simplest way to capture a screenshot is with a GET request:
+          </p>
+          <div class="rounded-lg border border-border bg-zinc-950 p-4">
+            <pre class="border-none bg-transparent p-0 text-sm"><code><span class="text-emerald-400">curl</span> <span class="text-amber-300">"https://api.shotapi.io/screenshot?url=https://example.com&access_key=YOUR_KEY"</span></code></pre>
+          </div>
+        </section>
+
+        <!-- Authentication -->
+        <section id="authentication">
+          <h2 class="mb-4 text-2xl font-bold text-foreground">Authentication</h2>
+          <p class="mb-4 text-muted-foreground">
+            ShotAPI supports four authentication methods. Choose the one that works best for your use case:
+          </p>
+          <div class="space-y-4">
+            <div class="rounded-lg border border-border bg-card p-5">
+              <h3 class="mb-2 font-semibold text-foreground">1. Query Parameter: <code>access_key</code></h3>
+              <div class="rounded-lg border border-border bg-zinc-950 p-4">
+                <pre class="border-none bg-transparent p-0 text-sm"><code><span class="text-amber-300">https://api.shotapi.io/screenshot?url=example.com&access_key=YOUR_KEY</span></code></pre>
+              </div>
+            </div>
+
+            <div class="rounded-lg border border-border bg-card p-5">
+              <h3 class="mb-2 font-semibold text-foreground">2. Query Parameter: <code>api_key</code></h3>
+              <div class="rounded-lg border border-border bg-zinc-950 p-4">
+                <pre class="border-none bg-transparent p-0 text-sm"><code><span class="text-amber-300">https://api.shotapi.io/screenshot?url=example.com&api_key=YOUR_KEY</span></code></pre>
+              </div>
+            </div>
+
+            <div class="rounded-lg border border-border bg-card p-5">
+              <h3 class="mb-2 font-semibold text-foreground">3. Authorization Header: Bearer</h3>
+              <div class="rounded-lg border border-border bg-zinc-950 p-4">
+                <pre class="border-none bg-transparent p-0 text-sm"><code><span class="text-emerald-400">curl</span> <span class="text-violet-400">-H</span> <span class="text-amber-300">"Authorization: Bearer YOUR_KEY"</span> <span class="text-zinc-400">\</span>
+  <span class="text-amber-300">"https://api.shotapi.io/screenshot?url=example.com"</span></code></pre>
+              </div>
+            </div>
+
+            <div class="rounded-lg border border-border bg-card p-5">
+              <h3 class="mb-2 font-semibold text-foreground">4. Custom Header: X-Api-Key</h3>
+              <div class="rounded-lg border border-border bg-zinc-950 p-4">
+                <pre class="border-none bg-transparent p-0 text-sm"><code><span class="text-emerald-400">curl</span> <span class="text-violet-400">-H</span> <span class="text-amber-300">"X-Api-Key: YOUR_KEY"</span> <span class="text-zinc-400">\</span>
+  <span class="text-amber-300">"https://api.shotapi.io/screenshot?url=example.com"</span></code></pre>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Parameters -->
+        <section id="parameters">
+          <h2 class="mb-4 text-2xl font-bold text-foreground">Parameters</h2>
+          <p class="mb-4 text-muted-foreground">
+            All parameters are passed as query parameters in the URL.
+          </p>
+          <div class="overflow-x-auto rounded-lg border border-border">
+            <table class="w-full">
+              <thead class="bg-muted/50">
+                <tr>
+                  <th class="border-b border-border px-4 py-3 text-left text-sm font-semibold text-foreground">Parameter</th>
+                  <th class="border-b border-border px-4 py-3 text-left text-sm font-semibold text-foreground">Type</th>
+                  <th class="border-b border-border px-4 py-3 text-left text-sm font-semibold text-foreground">Default</th>
+                  <th class="border-b border-border px-4 py-3 text-left text-sm font-semibold text-foreground">Description</th>
+                </tr>
+              </thead>
+              <tbody class="bg-card">
+                <tr>
+                  <td class="border-b border-border px-4 py-3 text-sm"><code>url</code> <span class="text-red-500">*</span></td>
+                  <td class="border-b border-border px-4 py-3 text-sm text-muted-foreground">string</td>
+                  <td class="border-b border-border px-4 py-3 text-sm text-muted-foreground">-</td>
+                  <td class="border-b border-border px-4 py-3 text-sm text-muted-foreground">Target URL to screenshot</td>
+                </tr>
+                <tr>
+                  <td class="border-b border-border px-4 py-3 text-sm"><code>format</code></td>
+                  <td class="border-b border-border px-4 py-3 text-sm text-muted-foreground">string</td>
+                  <td class="border-b border-border px-4 py-3 text-sm text-muted-foreground">png</td>
+                  <td class="border-b border-border px-4 py-3 text-sm text-muted-foreground">Output format: png, jpeg, webp, pdf</td>
+                </tr>
+                <tr>
+                  <td class="border-b border-border px-4 py-3 text-sm"><code>viewport_width</code></td>
+                  <td class="border-b border-border px-4 py-3 text-sm text-muted-foreground">number</td>
+                  <td class="border-b border-border px-4 py-3 text-sm text-muted-foreground">1280</td>
+                  <td class="border-b border-border px-4 py-3 text-sm text-muted-foreground">Viewport width in pixels</td>
+                </tr>
+                <tr>
+                  <td class="border-b border-border px-4 py-3 text-sm"><code>viewport_height</code></td>
+                  <td class="border-b border-border px-4 py-3 text-sm text-muted-foreground">number</td>
+                  <td class="border-b border-border px-4 py-3 text-sm text-muted-foreground">1024</td>
+                  <td class="border-b border-border px-4 py-3 text-sm text-muted-foreground">Viewport height in pixels</td>
+                </tr>
+                <tr>
+                  <td class="border-b border-border px-4 py-3 text-sm"><code>device_scale_factor</code></td>
+                  <td class="border-b border-border px-4 py-3 text-sm text-muted-foreground">number</td>
+                  <td class="border-b border-border px-4 py-3 text-sm text-muted-foreground">1</td>
+                  <td class="border-b border-border px-4 py-3 text-sm text-muted-foreground">Device pixel ratio (1-3)</td>
+                </tr>
+                <tr>
+                  <td class="border-b border-border px-4 py-3 text-sm"><code>full_page</code></td>
+                  <td class="border-b border-border px-4 py-3 text-sm text-muted-foreground">boolean</td>
+                  <td class="border-b border-border px-4 py-3 text-sm text-muted-foreground">false</td>
+                  <td class="border-b border-border px-4 py-3 text-sm text-muted-foreground">Capture full scrollable page</td>
+                </tr>
+                <tr>
+                  <td class="border-b border-border px-4 py-3 text-sm"><code>selector</code></td>
+                  <td class="border-b border-border px-4 py-3 text-sm text-muted-foreground">string</td>
+                  <td class="border-b border-border px-4 py-3 text-sm text-muted-foreground">-</td>
+                  <td class="border-b border-border px-4 py-3 text-sm text-muted-foreground">CSS selector to screenshot specific element</td>
+                </tr>
+                <tr>
+                  <td class="border-b border-border px-4 py-3 text-sm"><code>image_quality</code></td>
+                  <td class="border-b border-border px-4 py-3 text-sm text-muted-foreground">number</td>
+                  <td class="border-b border-border px-4 py-3 text-sm text-muted-foreground">80</td>
+                  <td class="border-b border-border px-4 py-3 text-sm text-muted-foreground">JPEG/WebP quality (0-100)</td>
+                </tr>
+                <tr>
+                  <td class="border-b border-border px-4 py-3 text-sm"><code>delay</code></td>
+                  <td class="border-b border-border px-4 py-3 text-sm text-muted-foreground">number</td>
+                  <td class="border-b border-border px-4 py-3 text-sm text-muted-foreground">0</td>
+                  <td class="border-b border-border px-4 py-3 text-sm text-muted-foreground">Wait time in milliseconds before capture</td>
+                </tr>
+                <tr>
+                  <td class="border-b border-border px-4 py-3 text-sm"><code>dark_mode</code></td>
+                  <td class="border-b border-border px-4 py-3 text-sm text-muted-foreground">boolean</td>
+                  <td class="border-b border-border px-4 py-3 text-sm text-muted-foreground">false</td>
+                  <td class="border-b border-border px-4 py-3 text-sm text-muted-foreground">Enable dark mode preference</td>
+                </tr>
+                <tr>
+                  <td class="border-b border-border px-4 py-3 text-sm"><code>block_ads</code></td>
+                  <td class="border-b border-border px-4 py-3 text-sm text-muted-foreground">boolean</td>
+                  <td class="border-b border-border px-4 py-3 text-sm text-muted-foreground">false</td>
+                  <td class="border-b border-border px-4 py-3 text-sm text-muted-foreground">Block ads and trackers</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-3 text-sm"><code>block_cookie_banners</code></td>
+                  <td class="px-4 py-3 text-sm text-muted-foreground">boolean</td>
+                  <td class="px-4 py-3 text-sm text-muted-foreground">false</td>
+                  <td class="px-4 py-3 text-sm text-muted-foreground">Hide cookie consent banners</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Response -->
+        <section id="response">
+          <h2 class="mb-4 text-2xl font-bold text-foreground">Response</h2>
+
+          <h3 class="mb-3 text-lg font-semibold text-foreground">Content Types</h3>
+          <div class="mb-6 overflow-x-auto rounded-lg border border-border">
+            <table class="w-full">
+              <thead class="bg-muted/50">
+                <tr>
+                  <th class="border-b border-border px-4 py-3 text-left text-sm font-semibold text-foreground">Format</th>
+                  <th class="border-b border-border px-4 py-3 text-left text-sm font-semibold text-foreground">Content-Type</th>
+                </tr>
+              </thead>
+              <tbody class="bg-card">
+                <tr>
+                  <td class="border-b border-border px-4 py-3 text-sm"><code>png</code></td>
+                  <td class="border-b border-border px-4 py-3 text-sm text-muted-foreground">image/png</td>
+                </tr>
+                <tr>
+                  <td class="border-b border-border px-4 py-3 text-sm"><code>jpeg</code></td>
+                  <td class="border-b border-border px-4 py-3 text-sm text-muted-foreground">image/jpeg</td>
+                </tr>
+                <tr>
+                  <td class="border-b border-border px-4 py-3 text-sm"><code>webp</code></td>
+                  <td class="border-b border-border px-4 py-3 text-sm text-muted-foreground">image/webp</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-3 text-sm"><code>pdf</code></td>
+                  <td class="px-4 py-3 text-sm text-muted-foreground">application/pdf</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3 class="mb-3 text-lg font-semibold text-foreground">Response Headers</h3>
+          <div class="space-y-2 text-sm">
+            <p class="text-muted-foreground"><code>X-RateLimit-Limit</code> - Your total daily quota</p>
+            <p class="text-muted-foreground"><code>X-RateLimit-Remaining</code> - Remaining requests today</p>
+            <p class="text-muted-foreground"><code>X-RateLimit-Reset</code> - Unix timestamp when quota resets</p>
+          </div>
+        </section>
+
+        <!-- Error Codes -->
+        <section id="error-codes">
+          <h2 class="mb-4 text-2xl font-bold text-foreground">Error Codes</h2>
+          <div class="overflow-x-auto rounded-lg border border-border">
+            <table class="w-full">
+              <thead class="bg-muted/50">
+                <tr>
+                  <th class="border-b border-border px-4 py-3 text-left text-sm font-semibold text-foreground">Status</th>
+                  <th class="border-b border-border px-4 py-3 text-left text-sm font-semibold text-foreground">Description</th>
+                </tr>
+              </thead>
+              <tbody class="bg-card">
+                <tr>
+                  <td class="border-b border-border px-4 py-3 text-sm"><code>400</code></td>
+                  <td class="border-b border-border px-4 py-3 text-sm text-muted-foreground">Bad Request - Missing or invalid parameters</td>
+                </tr>
+                <tr>
+                  <td class="border-b border-border px-4 py-3 text-sm"><code>401</code></td>
+                  <td class="border-b border-border px-4 py-3 text-sm text-muted-foreground">Unauthorized - Invalid or missing API key</td>
+                </tr>
+                <tr>
+                  <td class="border-b border-border px-4 py-3 text-sm"><code>429</code></td>
+                  <td class="border-b border-border px-4 py-3 text-sm text-muted-foreground">Too Many Requests - Rate limit exceeded</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-3 text-sm"><code>500</code></td>
+                  <td class="px-4 py-3 text-sm text-muted-foreground">Internal Server Error - Something went wrong on our end</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Rate Limits -->
+        <section id="rate-limits">
+          <h2 class="mb-4 text-2xl font-bold text-foreground">Rate Limits</h2>
+          <p class="mb-4 text-muted-foreground">
+            Rate limits reset daily at midnight UTC. Limits are per API key.
+          </p>
+          <div class="overflow-x-auto rounded-lg border border-border">
+            <table class="w-full">
+              <thead class="bg-muted/50">
+                <tr>
+                  <th class="border-b border-border px-4 py-3 text-left text-sm font-semibold text-foreground">Plan</th>
+                  <th class="border-b border-border px-4 py-3 text-left text-sm font-semibold text-foreground">Price</th>
+                  <th class="border-b border-border px-4 py-3 text-left text-sm font-semibold text-foreground">Daily Limit</th>
+                </tr>
+              </thead>
+              <tbody class="bg-card">
+                <tr>
+                  <td class="border-b border-border px-4 py-3 text-sm font-medium">Anonymous</td>
+                  <td class="border-b border-border px-4 py-3 text-sm text-muted-foreground">Free</td>
+                  <td class="border-b border-border px-4 py-3 text-sm text-muted-foreground">10 requests/day</td>
+                </tr>
+                <tr>
+                  <td class="border-b border-border px-4 py-3 text-sm font-medium">Free</td>
+                  <td class="border-b border-border px-4 py-3 text-sm text-muted-foreground">$0</td>
+                  <td class="border-b border-border px-4 py-3 text-sm text-muted-foreground">100 requests/day</td>
+                </tr>
+                <tr>
+                  <td class="border-b border-border px-4 py-3 text-sm font-medium">Starter</td>
+                  <td class="border-b border-border px-4 py-3 text-sm text-muted-foreground">$9/month</td>
+                  <td class="border-b border-border px-4 py-3 text-sm text-muted-foreground">2,500 requests/day</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-3 text-sm font-medium">Pro</td>
+                  <td class="px-4 py-3 text-sm text-muted-foreground">$29/month</td>
+                  <td class="px-4 py-3 text-sm text-muted-foreground">10,000 requests/day</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Code Examples -->
+        <section id="examples">
+          <h2 class="mb-4 text-2xl font-bold text-foreground">Code Examples</h2>
+
+          <div class="space-y-6">
+            <div>
+              <h3 class="mb-3 text-lg font-semibold text-foreground">cURL</h3>
+              <div class="rounded-lg border border-border bg-zinc-950 p-4">
+                <pre class="border-none bg-transparent p-0 text-sm"><code><span class="text-zinc-500"># Basic screenshot</span>
+<span class="text-emerald-400">curl</span> <span class="text-amber-300">"https://api.shotapi.io/screenshot?url=https://example.com&access_key=YOUR_KEY"</span> <span class="text-zinc-400">\</span>
+  <span class="text-violet-400">-o</span> screenshot.png
+
+<span class="text-zinc-500"># Full page with custom viewport</span>
+<span class="text-emerald-400">curl</span> <span class="text-amber-300">"https://api.shotapi.io/screenshot?url=https://example.com&access_key=YOUR_KEY&full_page=true&viewport_width=1920"</span> <span class="text-zinc-400">\</span>
+  <span class="text-violet-400">-o</span> screenshot.png
+
+<span class="text-zinc-500"># Screenshot specific element</span>
+<span class="text-emerald-400">curl</span> <span class="text-amber-300">"https://api.shotapi.io/screenshot?url=https://example.com&access_key=YOUR_KEY&selector=.hero-section"</span> <span class="text-zinc-400">\</span>
+  <span class="text-violet-400">-o</span> screenshot.png</code></pre>
+              </div>
+            </div>
+
+            <div>
+              <h3 class="mb-3 text-lg font-semibold text-foreground">Node.js (fetch)</h3>
+              <div class="rounded-lg border border-border bg-zinc-950 p-4">
+                <pre class="border-none bg-transparent p-0 text-sm"><code><span class="text-violet-400">const</span> <span class="text-sky-300">fs</span> <span class="text-zinc-400">=</span> <span class="text-emerald-400">require</span><span class="text-zinc-400">(</span><span class="text-amber-300">'fs'</span><span class="text-zinc-400">);</span>
+
+<span class="text-violet-400">const</span> <span class="text-sky-300">API_KEY</span> <span class="text-zinc-400">=</span> <span class="text-amber-300">'YOUR_KEY'</span><span class="text-zinc-400">;</span>
+<span class="text-violet-400">const</span> <span class="text-sky-300">url</span> <span class="text-zinc-400">=</span> <span class="text-amber-300">'https://example.com'</span><span class="text-zinc-400">;</span>
+
+<span class="text-violet-400">const</span> <span class="text-sky-300">response</span> <span class="text-zinc-400">=</span> <span class="text-violet-400">await</span> <span class="text-emerald-400">fetch</span><span class="text-zinc-400">(</span>
+  <span class="text-amber-300">`https://api.shotapi.io/screenshot?url=</span><span class="text-violet-400">${</span><span class="text-emerald-400">encodeURIComponent</span><span class="text-zinc-400">(</span><span class="text-sky-300">url</span><span class="text-zinc-400">)</span><span class="text-violet-400">}</span><span class="text-amber-300">&format=png`</span><span class="text-zinc-400">,</span>
+  <span class="text-zinc-400">{</span>
+    <span class="text-sky-300">headers</span><span class="text-zinc-400">:</span> <span class="text-zinc-400">{</span>
+      <span class="text-amber-300">'Authorization'</span><span class="text-zinc-400">:</span> <span class="text-amber-300">`Bearer </span><span class="text-violet-400">${</span><span class="text-sky-300">API_KEY</span><span class="text-violet-400">}</span><span class="text-amber-300">`</span>
+    <span class="text-zinc-400">}</span>
+  <span class="text-zinc-400">}</span>
+<span class="text-zinc-400">);</span>
+
+<span class="text-violet-400">const</span> <span class="text-sky-300">buffer</span> <span class="text-zinc-400">=</span> <span class="text-violet-400">await</span> <span class="text-sky-300">response</span><span class="text-zinc-400">.</span><span class="text-emerald-400">arrayBuffer</span><span class="text-zinc-400">();</span>
+<span class="text-sky-300">fs</span><span class="text-zinc-400">.</span><span class="text-emerald-400">writeFileSync</span><span class="text-zinc-400">(</span><span class="text-amber-300">'screenshot.png'</span><span class="text-zinc-400">,</span> <span class="text-emerald-400">Buffer</span><span class="text-zinc-400">.</span><span class="text-emerald-400">from</span><span class="text-zinc-400">(</span><span class="text-sky-300">buffer</span><span class="text-zinc-400">));</span></code></pre>
+              </div>
+            </div>
+
+            <div>
+              <h3 class="mb-3 text-lg font-semibold text-foreground">Python (requests)</h3>
+              <div class="rounded-lg border border-border bg-zinc-950 p-4">
+                <pre class="border-none bg-transparent p-0 text-sm"><code><span class="text-violet-400">import</span> requests
+
+<span class="text-sky-300">API_KEY</span> <span class="text-zinc-400">=</span> <span class="text-amber-300">'YOUR_KEY'</span>
+<span class="text-sky-300">url</span> <span class="text-zinc-400">=</span> <span class="text-amber-300">'https://example.com'</span>
+
+<span class="text-sky-300">response</span> <span class="text-zinc-400">=</span> requests<span class="text-zinc-400">.</span><span class="text-emerald-400">get</span><span class="text-zinc-400">(</span>
+    <span class="text-amber-300">f'https://api.shotapi.io/screenshot'</span><span class="text-zinc-400">,</span>
+    <span class="text-sky-300">params</span><span class="text-zinc-400">={</span>
+        <span class="text-amber-300">'url'</span><span class="text-zinc-400">:</span> <span class="text-sky-300">url</span><span class="text-zinc-400">,</span>
+        <span class="text-amber-300">'format'</span><span class="text-zinc-400">:</span> <span class="text-amber-300">'png'</span><span class="text-zinc-400">,</span>
+        <span class="text-amber-300">'full_page'</span><span class="text-zinc-400">:</span> <span class="text-amber-300">'true'</span>
+    <span class="text-zinc-400">},</span>
+    <span class="text-sky-300">headers</span><span class="text-zinc-400">={</span>
+        <span class="text-amber-300">'Authorization'</span><span class="text-zinc-400">:</span> <span class="text-amber-300">f'Bearer </span><span class="text-violet-400">{</span><span class="text-sky-300">API_KEY</span><span class="text-violet-400">}</span><span class="text-amber-300">'</span>
+    <span class="text-zinc-400">}</span>
+<span class="text-zinc-400">)</span>
+
+<span class="text-violet-400">with</span> <span class="text-emerald-400">open</span><span class="text-zinc-400">(</span><span class="text-amber-300">'screenshot.png'</span><span class="text-zinc-400">,</span> <span class="text-amber-300">'wb'</span><span class="text-zinc-400">)</span> <span class="text-violet-400">as</span> <span class="text-sky-300">f</span><span class="text-zinc-400">:</span>
+    <span class="text-sky-300">f</span><span class="text-zinc-400">.</span><span class="text-emerald-400">write</span><span class="text-zinc-400">(</span><span class="text-sky-300">response</span><span class="text-zinc-400">.</span><span class="text-sky-300">content</span><span class="text-zinc-400">)</span></code></pre>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div class="rounded-lg border border-border bg-muted/30 p-6">
+          <p class="text-sm text-muted-foreground">
+            Need help or have questions? Check out our <a href="/guides" class="text-foreground underline">guides</a> or reach out through the dashboard.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</Layout>

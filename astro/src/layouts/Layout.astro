@@ -1,0 +1,171 @@
+---
+import "../styles/globals.css";
+import ThemeToggle from "../islands/ThemeToggle.tsx";
+
+interface Props {
+  title: string;
+  description: string;
+  path: string;
+  ogImage?: string;
+}
+
+const { title, description, path, ogImage } = Astro.props;
+const baseUrl = "https://shotapi.io";
+const fullUrl = `${baseUrl}${path}`;
+const defaultOgImage =
+  ogImage ||
+  `${baseUrl}/take?url=${encodeURIComponent(baseUrl)}&format=png&viewport_width=1200&viewport_height=630`;
+---
+
+<!doctype html>
+<html lang="en" class="dark scroll-smooth">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={fullUrl} />
+
+    <!-- Open Graph -->
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={fullUrl} />
+    <meta property="og:image" content={defaultOgImage} />
+    <meta property="og:type" content="website" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={defaultOgImage} />
+
+    <!-- Inter font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Theme detection (no FOUC) -->
+    <script is:inline>
+      (function () {
+        const stored = localStorage.getItem("theme");
+        if (stored === "light") {
+          document.documentElement.classList.remove("dark");
+        } else if (stored === "dark") {
+          document.documentElement.classList.add("dark");
+        } else if (
+          window.matchMedia("(prefers-color-scheme: light)").matches
+        ) {
+          document.documentElement.classList.remove("dark");
+        }
+      })();
+    </script>
+  </head>
+  <body class="min-h-screen bg-background font-sans text-foreground">
+    <nav class="border-b border-border">
+      <div
+        class="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6"
+      >
+        <a href="/" class="text-xl font-bold tracking-tight text-foreground">
+          Shot<span class="text-zinc-500 dark:text-zinc-400">API</span>
+        </a>
+        <div class="flex items-center gap-6 text-sm">
+          <a
+            href="/docs"
+            class="text-muted-foreground transition hover:text-foreground"
+            >Docs</a
+          >
+          <a
+            href="/pricing"
+            class="text-muted-foreground transition hover:text-foreground"
+            >Pricing</a
+          >
+          <ThemeToggle client:load />
+          <a
+            href="/keys"
+            class="inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
+            >Get API Key</a
+          >
+        </div>
+      </div>
+    </nav>
+
+    <main>
+      <slot />
+    </main>
+
+    <footer class="mt-24 border-t border-border">
+      <div class="mx-auto max-w-6xl px-4 py-12 sm:px-6">
+        <div class="grid grid-cols-2 gap-8 md:grid-cols-4">
+          <div>
+            <h3 class="mb-3 text-sm font-semibold text-foreground">Product</h3>
+            <ul class="space-y-2 text-sm text-muted-foreground">
+              <li>
+                <a href="/docs" class="transition hover:text-foreground"
+                  >Documentation</a
+                >
+              </li>
+              <li>
+                <a href="/pricing" class="transition hover:text-foreground"
+                  >Pricing</a
+                >
+              </li>
+              <li>
+                <a href="/keys" class="transition hover:text-foreground"
+                  >Get API Key</a
+                >
+              </li>
+            </ul>
+          </div>
+          <div>
+            <h3 class="mb-3 text-sm font-semibold text-foreground">Compare</h3>
+            <ul class="space-y-2 text-sm text-muted-foreground">
+              <li>
+                <a
+                  href="/vs/screenshotone"
+                  class="transition hover:text-foreground">vs ScreenshotOne</a
+                >
+              </li>
+              <li>
+                <a href="/vs/puppeteer" class="transition hover:text-foreground"
+                  >vs Puppeteer</a
+                >
+              </li>
+            </ul>
+          </div>
+          <div>
+            <h3 class="mb-3 text-sm font-semibold text-foreground">
+              Resources
+            </h3>
+            <ul class="space-y-2 text-sm text-muted-foreground">
+              <li>
+                <a
+                  href="/blog/free-screenshot-api"
+                  class="transition hover:text-foreground"
+                  >Free Screenshot API</a
+                >
+              </li>
+              <li>
+                <a
+                  href="/guides/nodejs-screenshot"
+                  class="transition hover:text-foreground">Node.js Guide</a
+                >
+              </li>
+            </ul>
+          </div>
+          <div>
+            <h3 class="mb-3 text-sm font-semibold text-foreground">ShotAPI</h3>
+            <p class="text-sm text-muted-foreground">
+              Fast, affordable screenshot API for developers.
+            </p>
+            <p class="mt-2 text-sm text-muted-foreground/60">
+              &copy; {new Date().getFullYear()} ShotAPI
+            </p>
+          </div>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

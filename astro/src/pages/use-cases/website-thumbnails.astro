@@ -1,0 +1,282 @@
+---
+import Layout from "../../layouts/Layout.astro";
+
+const nodejsCode = `<span class="text-violet-400">const</span> <span class="text-sky-300">fetch</span> = <span class="text-violet-400">require</span>(<span class="text-amber-300">'node-fetch'</span>);
+<span class="text-violet-400">const</span> <span class="text-sky-300">fs</span> = <span class="text-violet-400">require</span>(<span class="text-amber-300">'fs'</span>);
+
+<span class="text-violet-400">const</span> <span class="text-sky-300">websites</span> = [
+  <span class="text-amber-300">'https://github.com'</span>,
+  <span class="text-amber-300">'https://stackoverflow.com'</span>,
+  <span class="text-amber-300">'https://reddit.com'</span>
+];
+
+<span class="text-violet-400">async function</span> <span class="text-emerald-400">generateThumbnails</span>() &#123;
+  <span class="text-violet-400">for</span> (<span class="text-violet-400">const</span> <span class="text-sky-300">url</span> <span class="text-violet-400">of</span> <span class="text-sky-300">websites</span>) &#123;
+    <span class="text-violet-400">const</span> <span class="text-sky-300">apiUrl</span> = <span class="text-amber-300">\`https://shotapi.io/api/screenshot?url=\$&#123;<span class="text-emerald-400">encodeURIComponent</span>(<span class="text-sky-300">url</span>)&#125;&amp;width=400&amp;height=300&amp;format=webp\`</span>;
+
+    <span class="text-violet-400">const</span> <span class="text-sky-300">response</span> = <span class="text-violet-400">await</span> <span class="text-emerald-400">fetch</span>(<span class="text-sky-300">apiUrl</span>, &#123;
+      <span class="text-sky-300">headers</span>: &#123; <span class="text-amber-300">'X-API-Key'</span>: <span class="text-amber-300">'YOUR_KEY'</span> &#125;
+    &#125;);
+
+    <span class="text-violet-400">const</span> <span class="text-sky-300">buffer</span> = <span class="text-violet-400">await</span> <span class="text-sky-300">response</span>.<span class="text-emerald-400">buffer</span>();
+    <span class="text-violet-400">const</span> <span class="text-sky-300">filename</span> = <span class="text-amber-300">\`thumbnail-\$&#123;<span class="text-sky-300">url</span>.<span class="text-emerald-400">replace</span>(<span class="text-amber-300">/[^a-z0-9]/gi</span>, <span class="text-amber-300">'-'</span>)&#125;.webp\`</span>;
+
+    <span class="text-sky-300">fs</span>.<span class="text-emerald-400">writeFileSync</span>(<span class="text-sky-300">filename</span>, <span class="text-sky-300">buffer</span>);
+    <span class="text-sky-300">console</span>.<span class="text-emerald-400">log</span>(<span class="text-amber-300">\`Generated: \$&#123;<span class="text-sky-300">filename</span>&#125;\`</span>);
+  &#125;
+&#125;
+
+<span class="text-emerald-400">generateThumbnails</span>();`;
+---
+
+<Layout
+  title="Website Thumbnail API — Generate Previews at Scale"
+  description="Generate website thumbnails and previews at scale. Perfect for directories, link aggregators, and portfolio sites."
+  path="/use-cases/website-thumbnails"
+>
+  <script type="application/ld+json" set:html={JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "Website Thumbnail API — Generate Previews at Scale",
+    "description": "Generate website thumbnails and previews at scale. Perfect for directories, link aggregators, and portfolio sites.",
+    "author": {
+      "@type": "Organization",
+      "name": "ShotAPI"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "ShotAPI",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://shotapi.io/logo.png"
+      }
+    },
+    "datePublished": "2026-02-10",
+    "dateModified": "2026-02-10"
+  })} />
+
+  <div class="container mx-auto px-4 py-12 max-w-5xl">
+    <!-- Breadcrumbs -->
+    <nav class="mb-8 text-sm text-muted-foreground">
+      <a href="/" class="hover:text-foreground">Home</a>
+      <span class="mx-2">/</span>
+      <a href="/use-cases" class="hover:text-foreground">Use Cases</a>
+      <span class="mx-2">/</span>
+      <span class="text-foreground">Website Thumbnails</span>
+    </nav>
+
+    <!-- Hero -->
+    <div class="mb-16">
+      <h1 class="text-4xl md:text-5xl font-bold text-foreground mb-6">
+        Website Thumbnail API
+      </h1>
+      <p class="text-xl text-muted-foreground mb-8">
+        Generate website thumbnails and previews at scale. Perfect for directories, link aggregators, and portfolio sites.
+      </p>
+    </div>
+
+    <!-- Use Cases -->
+    <section class="mb-16">
+      <h2 class="text-3xl font-bold text-foreground mb-8">
+        Common Use Cases
+      </h2>
+      <div class="grid md:grid-cols-2 gap-6">
+        <div class="rounded-lg border border-border bg-card p-6">
+          <h3 class="text-xl font-bold text-foreground mb-3">Link Directories</h3>
+          <p class="text-muted-foreground">
+            Show visual previews of every link in your directory. Help users recognize sites at a glance.
+          </p>
+        </div>
+        <div class="rounded-lg border border-border bg-card p-6">
+          <h3 class="text-xl font-bold text-foreground mb-3">Bookmark Managers</h3>
+          <p class="text-muted-foreground">
+            Auto-generate thumbnails when users save bookmarks. Make visual browsing effortless.
+          </p>
+        </div>
+        <div class="rounded-lg border border-border bg-card p-6">
+          <h3 class="text-xl font-bold text-foreground mb-3">Portfolio Sites</h3>
+          <p class="text-muted-foreground">
+            Showcase your web projects with live screenshots. Always up-to-date, no manual updates needed.
+          </p>
+        </div>
+        <div class="rounded-lg border border-border bg-card p-6">
+          <h3 class="text-xl font-bold text-foreground mb-3">Content Aggregators</h3>
+          <p class="text-muted-foreground">
+            Display article previews with screenshots. Increase engagement with visual content.
+          </p>
+        </div>
+        <div class="rounded-lg border border-border bg-card p-6">
+          <h3 class="text-xl font-bold text-foreground mb-3">Search Results</h3>
+          <p class="text-muted-foreground">
+            Add thumbnail previews to search results. Help users find the right page faster.
+          </p>
+        </div>
+        <div class="rounded-lg border border-border bg-card p-6">
+          <h3 class="text-xl font-bold text-foreground mb-3">Competitive Analysis</h3>
+          <p class="text-muted-foreground">
+            Track competitor website changes over time. Visual snapshots for design inspiration.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- How It Works -->
+    <section class="mb-16">
+      <h2 class="text-3xl font-bold text-foreground mb-8">
+        How It Works
+      </h2>
+      <p class="text-muted-foreground mb-6">
+        Generate a thumbnail with a single API call:
+      </p>
+
+      <pre class="border-none bg-transparent p-0 text-sm mb-8"><code class="block bg-zinc-950 p-4 rounded-lg overflow-x-auto"><span class="text-emerald-400">curl</span> <span class="text-amber-300">"https://shotapi.io/api/screenshot?url=https://example.com&width=400&height=300&format=webp"</span> \
+  <span class="text-violet-400">-H</span> <span class="text-amber-300">"X-API-Key: YOUR_KEY"</span> \
+  <span class="text-violet-400">--output</span> <span class="text-amber-300">thumbnail.webp</span></code></pre>
+
+      <h3 class="text-2xl font-bold text-foreground mb-6">Key Parameters</h3>
+      <div class="rounded-lg border border-border overflow-hidden">
+        <table class="w-full">
+          <thead class="bg-muted">
+            <tr>
+              <th class="text-left p-4 font-bold text-foreground">Parameter</th>
+              <th class="text-left p-4 font-bold text-foreground">Description</th>
+              <th class="text-left p-4 font-bold text-foreground">Example</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-border">
+            <tr>
+              <td class="p-4 text-foreground font-medium">url</td>
+              <td class="p-4 text-muted-foreground">The website to screenshot</td>
+              <td class="p-4"><code class="text-sm bg-muted px-2 py-1 rounded">https://example.com</code></td>
+            </tr>
+            <tr class="bg-muted/30">
+              <td class="p-4 text-foreground font-medium">width</td>
+              <td class="p-4 text-muted-foreground">Thumbnail width in pixels</td>
+              <td class="p-4"><code class="text-sm bg-muted px-2 py-1 rounded">400</code></td>
+            </tr>
+            <tr>
+              <td class="p-4 text-foreground font-medium">height</td>
+              <td class="p-4 text-muted-foreground">Thumbnail height in pixels</td>
+              <td class="p-4"><code class="text-sm bg-muted px-2 py-1 rounded">300</code></td>
+            </tr>
+            <tr class="bg-muted/30">
+              <td class="p-4 text-foreground font-medium">format</td>
+              <td class="p-4 text-muted-foreground">Output format (png, jpeg, webp)</td>
+              <td class="p-4"><code class="text-sm bg-muted px-2 py-1 rounded">webp</code></td>
+            </tr>
+            <tr>
+              <td class="p-4 text-foreground font-medium">fullPage</td>
+              <td class="p-4 text-muted-foreground">Capture entire page (true/false)</td>
+              <td class="p-4"><code class="text-sm bg-muted px-2 py-1 rounded">false</code></td>
+            </tr>
+            <tr class="bg-muted/30">
+              <td class="p-4 text-foreground font-medium">blockAds</td>
+              <td class="p-4 text-muted-foreground">Remove ads and trackers</td>
+              <td class="p-4"><code class="text-sm bg-muted px-2 py-1 rounded">true</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Building Thumbnail Grid -->
+    <section class="mb-16">
+      <h2 class="text-3xl font-bold text-foreground mb-8">
+        Building a Thumbnail Grid
+      </h2>
+
+      <div class="mb-8">
+        <h3 class="text-xl font-bold text-foreground mb-4">Node.js Example</h3>
+        <pre class="border-none bg-transparent p-0 text-sm"><code class="block bg-zinc-950 p-4 rounded-lg overflow-x-auto" set:html={nodejsCode}></code></pre>
+      </div>
+
+      <div>
+        <h3 class="text-xl font-bold text-foreground mb-4">HTML Display Grid</h3>
+        <pre class="border-none bg-transparent p-0 text-sm"><code class="block bg-zinc-950 p-4 rounded-lg overflow-x-auto"><span class="text-violet-400">&lt;div</span> <span class="text-sky-300">class</span>=<span class="text-amber-300">"grid grid-cols-3 gap-4"</span><span class="text-violet-400">&gt;</span>
+  <span class="text-violet-400">&lt;a</span> <span class="text-sky-300">href</span>=<span class="text-amber-300">"https://github.com"</span><span class="text-violet-400">&gt;</span>
+    <span class="text-violet-400">&lt;img</span>
+      <span class="text-sky-300">src</span>=<span class="text-amber-300">"https://shotapi.io/api/screenshot?url=https://github.com&width=400&height=300"</span>
+      <span class="text-sky-300">alt</span>=<span class="text-amber-300">"GitHub"</span>
+      <span class="text-sky-300">loading</span>=<span class="text-amber-300">"lazy"</span>
+    <span class="text-violet-400">/&gt;</span>
+    <span class="text-violet-400">&lt;h3&gt;</span>GitHub<span class="text-violet-400">&lt;/h3&gt;</span>
+  <span class="text-violet-400">&lt;/a&gt;</span>
+
+  <span class="text-violet-400">&lt;a</span> <span class="text-sky-300">href</span>=<span class="text-amber-300">"https://stackoverflow.com"</span><span class="text-violet-400">&gt;</span>
+    <span class="text-violet-400">&lt;img</span>
+      <span class="text-sky-300">src</span>=<span class="text-amber-300">"https://shotapi.io/api/screenshot?url=https://stackoverflow.com&width=400&height=300"</span>
+      <span class="text-sky-300">alt</span>=<span class="text-amber-300">"Stack Overflow"</span>
+      <span class="text-sky-300">loading</span>=<span class="text-amber-300">"lazy"</span>
+    <span class="text-violet-400">/&gt;</span>
+    <span class="text-violet-400">&lt;h3&gt;</span>Stack Overflow<span class="text-violet-400">&lt;/h3&gt;</span>
+  <span class="text-violet-400">&lt;/a&gt;</span>
+<span class="text-violet-400">&lt;/div&gt;</span></code></pre>
+      </div>
+    </section>
+
+    <!-- Performance Tips -->
+    <section class="mb-16">
+      <h2 class="text-3xl font-bold text-foreground mb-8">
+        Performance Tips
+      </h2>
+      <div class="grid md:grid-cols-1 gap-6">
+        <div class="rounded-lg border border-border bg-card p-6">
+          <h3 class="text-xl font-bold text-foreground mb-3">Use WebP Format</h3>
+          <p class="text-muted-foreground">
+            WebP images are 25-35% smaller than PNG/JPEG. Perfect for thumbnails where file size matters.
+          </p>
+        </div>
+        <div class="rounded-lg border border-border bg-card p-6">
+          <h3 class="text-xl font-bold text-foreground mb-3">Cache Aggressively</h3>
+          <p class="text-muted-foreground">
+            Store thumbnails locally or in a CDN. Websites don't change often, no need to regenerate every time.
+          </p>
+        </div>
+        <div class="rounded-lg border border-border bg-card p-6">
+          <h3 class="text-xl font-bold text-foreground mb-3">Use Lazy Loading</h3>
+          <p class="text-muted-foreground">
+            Add <code class="text-sm bg-muted px-2 py-1 rounded">loading="lazy"</code> to img tags. Only load thumbnails when they enter the viewport.
+          </p>
+        </div>
+        <div class="rounded-lg border border-border bg-card p-6">
+          <h3 class="text-xl font-bold text-foreground mb-3">Standard Sizes</h3>
+          <p class="text-muted-foreground">
+            Stick to a few standard sizes (e.g., 400×300, 800×600). Better for caching and consistency.
+          </p>
+        </div>
+        <div class="rounded-lg border border-border bg-card p-6">
+          <h3 class="text-xl font-bold text-foreground mb-3">Block Ads</h3>
+          <p class="text-muted-foreground">
+            Use <code class="text-sm bg-muted px-2 py-1 rounded">blockAds=true</code> parameter. Cleaner thumbnails without intrusive ads.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="text-center">
+      <div class="rounded-lg border border-border bg-card p-12">
+        <h2 class="text-3xl font-bold text-foreground mb-4">
+          Start Generating Thumbnails
+        </h2>
+        <p class="text-xl text-muted-foreground mb-8">
+          100 free screenshots per day. Perfect for building your thumbnail library.
+        </p>
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+          <a
+            href="/docs"
+            class="inline-block px-8 py-4 rounded-lg bg-primary text-primary-foreground font-bold hover:opacity-90 transition-opacity"
+          >
+            View Documentation
+          </a>
+          <a
+            href="https://dashboard.shotapi.io"
+            class="inline-block px-8 py-4 rounded-lg border border-border text-foreground font-bold hover:bg-muted transition-colors"
+          >
+            Get API Key
+          </a>
+        </div>
+      </div>
+    </section>
+  </div>
+</Layout>
