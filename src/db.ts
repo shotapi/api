@@ -45,6 +45,32 @@ export async function initDb(): Promise<void> {
     `CREATE INDEX IF NOT EXISTS idx_requests_created_at ON requests(created_at)`,
     `CREATE INDEX IF NOT EXISTS idx_daily_stats_date ON daily_stats(date)`,
   ], 'write');
+
+  // Migrate stripe_* columns to dodo_* if the table predates the Dodo switch
+  await migrateStripeToDodo(db);
+}
+
+async function migrateStripeToDodo(db: Client): Promise<void> {
+  const cols = await db.execute("PRAGMA table_info(api_keys)");
+  const colNames = cols.rows.map(r => r.name as string);
+
+  const hasStripe = colNames.includes('stripe_customer_id');
+  const hasDodo = colNames.includes('dodo_customer_id');
+
+  if (hasStripe && !hasDodo) {
+    // Old schema: rename stripe columns to dodo
+    await db.batch([
+      'ALTER TABLE api_keys RENAME COLUMN stripe_customer_id TO dodo_customer_id',
+      'ALTER TABLE api_keys RENAME COLUMN stripe_subscription_id TO dodo_subscription_id',
+    ], 'write');
+  } else if (!hasStripe && !hasDodo) {
+    // Very old schema without any payment columns — add dodo columns
+    await db.batch([
+      'ALTER TABLE api_keys ADD COLUMN dodo_customer_id TEXT',
+      'ALTER TABLE api_keys ADD COLUMN dodo_subscription_id TEXT',
+    ], 'write');
+  }
+  // If hasDodo is already true, nothing to do
 }
 
 export async function logRequest(params: {
