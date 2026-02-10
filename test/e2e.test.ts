@@ -5,10 +5,10 @@ import app from '../src/app.js';
 // Use in-memory DB for tests
 process.env.TURSO_DATABASE_URL = ':memory:';
 
-// Ensure Stripe env vars are NOT set (test graceful degradation)
-delete process.env.STRIPE_SECRET_KEY;
-delete process.env.STRIPE_STARTER_PRICE_ID;
-delete process.env.STRIPE_PRO_PRICE_ID;
+// Ensure Dodo env vars are NOT set (test graceful degradation)
+delete process.env.DODO_PAYMENTS_API_KEY;
+delete process.env.DODO_STARTER_PRODUCT_ID;
+delete process.env.DODO_PRO_PRODUCT_ID;
 
 function req(path: string, init?: RequestInit) {
   return app.request(path, init);
@@ -60,7 +60,7 @@ describe('E2E: User Flows', () => {
   // --- Flow 2: Billing error handling ---
 
   describe('billing error handling', () => {
-    it('POST /billing/checkout without Stripe returns user-friendly error', async () => {
+    it('POST /billing/checkout without Dodo returns user-friendly error', async () => {
       const signupRes = await post('/keys', { email: 'billing@test.com' });
       const { key } = await signupRes.json();
 
@@ -68,7 +68,7 @@ describe('E2E: User Flows', () => {
       const data = await res.json();
 
       // Must NOT leak internal details
-      expect(data.message).not.toContain('STRIPE_SECRET_KEY');
+      expect(data.message).not.toContain('DODO_PAYMENTS_API_KEY');
       expect(data.message).not.toContain('process.env');
       expect(data.message).not.toContain('not configured');
       expect(data.message).not.toContain('Unknown plan');
@@ -86,9 +86,9 @@ describe('E2E: User Flows', () => {
     it('POST /billing/checkout with invalid API key returns error', async () => {
       const res = await post('/billing/checkout', { api_key: 'sa_fake', plan: 'starter' });
       const data = await res.json();
-      // Should not reveal whether it's a Stripe issue or key issue
+      // Should not reveal whether it's a Dodo issue or key issue
       // Just a generic user-friendly error
-      expect(data.message).not.toContain('STRIPE');
+      expect(data.message).not.toContain('DODO');
     });
   });
 
@@ -146,7 +146,7 @@ describe('E2E: User Flows', () => {
   describe('error messages are user-safe', () => {
     const FORBIDDEN_PATTERNS = [
       /process\.env/i,
-      /STRIPE_\w+/,
+      /DODO_\w+/,
       /not configured/i,
       /TURSO_\w+/,
       /stack trace/i,
@@ -161,7 +161,7 @@ describe('E2E: User Flows', () => {
       }
     });
 
-    it('POST /billing/checkout without Stripe has safe error', async () => {
+    it('POST /billing/checkout without Dodo has safe error', async () => {
       const signupRes = await post('/keys', { email: 'safe@test.com' });
       const { key } = await signupRes.json();
       const res = await post('/billing/checkout', { api_key: key, plan: 'pro' });
