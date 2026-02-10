@@ -12,7 +12,10 @@ RUN npm install --production=false
 # Copy source
 COPY . .
 
-# Build TypeScript
+# Build Astro (pages)
+RUN cd astro && npm install && npm run build
+
+# Build TypeScript (Hono API)
 RUN npm run build
 
 # Install only chromium (smaller image)

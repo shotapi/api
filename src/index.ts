@@ -1,3 +1,4 @@
+import http from 'node:http';
 import { serve } from '@hono/node-server';
 import { logger } from 'hono/logger';
 import { closeBrowser } from './screenshot.js';
@@ -22,8 +23,61 @@ const port = parseInt(process.env.PORT || '3000');
 
 async function start() {
   await initDb();
+
+  // Try to load Astro SSR handler
+  let astroHandler: ((req: http.IncomingMessage, res: http.ServerResponse, next?: () => void) => void) | null = null;
+  try {
+    // @ts-expect-error - Astro build output has no type declarations
+    const astro = await import('../astro/dist/server/entry.mjs');
+    astroHandler = astro.handler;
+    console.log('Astro SSR handler loaded');
+  } catch {
+    console.warn('Astro SSR handler not found (run: cd astro && npm run build)');
+  }
+
   console.log(`ShotAPI starting on port ${port}`);
-  serve({ fetch: app.fetch, port });
+
+  // Create a single Node HTTP server that routes to Hono API or Astro SSR
+  const { getRequestListener } = await import('@hono/node-server');
+  const honoListener = getRequestListener(app.fetch);
+
+  // Routes that Hono's API handles (not page routes)
+  const API_PREFIXES = ['/api', '/health', '/stats', '/take', '/billing'];
+  const API_EXACT = new Set(['/robots.txt', '/sitemap.xml']);
+
+  const server = http.createServer((req, res) => {
+    const url = req.url || '/';
+    const pathname = url.split('?')[0];
+
+    // Keys POST = Hono API, Keys GET = Astro page
+    const isKeysPost = pathname === '/keys' && req.method === 'POST';
+    const isKeysUsage = pathname.startsWith('/keys/') && pathname.endsWith('/usage');
+
+    // API routes -> Hono
+    const isApiRoute =
+      isKeysPost ||
+      isKeysUsage ||
+      API_EXACT.has(pathname) ||
+      API_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + '/'));
+
+    if (isApiRoute || !astroHandler) {
+      // Hono handles API routes (and all routes if Astro isn't built)
+      honoListener(req, res);
+    } else if (pathname.startsWith('/_astro/')) {
+      // Astro client-side assets
+      astroHandler(req, res);
+    } else {
+      // Page routes -> Astro SSR, with Hono fallback
+      astroHandler(req, res, () => {
+        // If Astro doesn't handle it, fall back to Hono (old template pages)
+        honoListener(req, res);
+      });
+    }
+  });
+
+  server.listen(port, () => {
+    console.log(`ShotAPI listening on http://localhost:${port}`);
+  });
 }
 
 start().catch((err) => {

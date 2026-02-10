@@ -1,0 +1,300 @@
+---
+import Layout from "../../layouts/Layout.astro";
+
+const puppeteerCode = `<span class="text-violet-400">const</span> <span class="text-sky-300">puppeteer</span> = <span class="text-violet-400">require</span>(<span class="text-amber-300">'puppeteer'</span>);
+
+<span class="text-violet-400">async function</span> <span class="text-emerald-400">takeScreenshot</span>(<span class="text-sky-300">url</span>) &#123;
+  <span class="text-violet-400">let</span> <span class="text-sky-300">browser</span>;
+  <span class="text-violet-400">try</span> &#123;
+    <span class="text-sky-300">browser</span> = <span class="text-violet-400">await</span> <span class="text-sky-300">puppeteer</span>.<span class="text-emerald-400">launch</span>(&#123;
+      <span class="text-sky-300">headless</span>: <span class="text-violet-400">true</span>,
+      <span class="text-sky-300">args</span>: [<span class="text-amber-300">'--no-sandbox'</span>, <span class="text-amber-300">'--disable-setuid-sandbox'</span>]
+    &#125;);
+
+    <span class="text-violet-400">const</span> <span class="text-sky-300">page</span> = <span class="text-violet-400">await</span> <span class="text-sky-300">browser</span>.<span class="text-emerald-400">newPage</span>();
+    <span class="text-violet-400">await</span> <span class="text-sky-300">page</span>.<span class="text-emerald-400">setViewport</span>(&#123; <span class="text-sky-300">width</span>: <span class="text-amber-300">1280</span>, <span class="text-sky-300">height</span>: <span class="text-amber-300">720</span> &#125;);
+    <span class="text-violet-400">await</span> <span class="text-sky-300">page</span>.<span class="text-emerald-400">goto</span>(<span class="text-sky-300">url</span>, &#123; <span class="text-sky-300">waitUntil</span>: <span class="text-amber-300">'networkidle0'</span> &#125;);
+
+    <span class="text-violet-400">const</span> <span class="text-sky-300">screenshot</span> = <span class="text-violet-400">await</span> <span class="text-sky-300">page</span>.<span class="text-emerald-400">screenshot</span>(&#123; <span class="text-sky-300">type</span>: <span class="text-amber-300">'png'</span> &#125;);
+    <span class="text-violet-400">return</span> <span class="text-sky-300">screenshot</span>;
+  &#125; <span class="text-violet-400">finally</span> &#123;
+    <span class="text-violet-400">if</span> (<span class="text-sky-300">browser</span>) <span class="text-violet-400">await</span> <span class="text-sky-300">browser</span>.<span class="text-emerald-400">close</span>();
+  &#125;
+&#125;`;
+---
+
+<Layout
+  title="ShotAPI vs Puppeteer for Screenshots — API vs DIY"
+  description="Stop managing Puppeteer infrastructure. Get screenshots via a simple API call. Free tier available."
+  path="/vs/puppeteer"
+>
+  <script type="application/ld+json" set:html={JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "ShotAPI vs Puppeteer for Screenshots — API vs DIY",
+    "description": "Stop managing Puppeteer infrastructure. Get screenshots via a simple API call. Free tier available.",
+    "author": {
+      "@type": "Organization",
+      "name": "ShotAPI"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "ShotAPI",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://shotapi.io/logo.png"
+      }
+    },
+    "datePublished": "2026-02-10",
+    "dateModified": "2026-02-10"
+  })} />
+
+  <div class="container mx-auto px-4 py-12 max-w-5xl">
+    <!-- Breadcrumbs -->
+    <nav class="mb-8 text-sm text-muted-foreground">
+      <a href="/" class="hover:text-foreground">Home</a>
+      <span class="mx-2">/</span>
+      <a href="/vs" class="hover:text-foreground">Comparisons</a>
+      <span class="mx-2">/</span>
+      <span class="text-foreground">vs Puppeteer</span>
+    </nav>
+
+    <!-- Hero -->
+    <div class="mb-16">
+      <h1 class="text-4xl md:text-5xl font-bold text-foreground mb-6">
+        ShotAPI vs Puppeteer for Screenshots
+      </h1>
+      <p class="text-xl text-muted-foreground mb-8">
+        Stop managing Puppeteer infrastructure. Get screenshots via a simple API call instead of maintaining browser automation code.
+      </p>
+    </div>
+
+    <!-- Puppeteer Maintenance Burden -->
+    <section class="mb-16">
+      <h2 class="text-3xl font-bold text-foreground mb-8">
+        The Hidden Cost of DIY Screenshots
+      </h2>
+      <div class="grid md:grid-cols-2 gap-6">
+        <div class="rounded-lg border border-border bg-card p-6">
+          <h3 class="text-xl font-bold text-foreground mb-3">Dependencies & Updates</h3>
+          <p class="text-muted-foreground">
+            Puppeteer updates constantly. Breaking changes, Chromium version mismatches, and npm dependency hell.
+          </p>
+        </div>
+        <div class="rounded-lg border border-border bg-card p-6">
+          <h3 class="text-xl font-bold text-foreground mb-3">Infrastructure</h3>
+          <p class="text-muted-foreground">
+            Need enough RAM for headless Chrome. Serverless? Lambda layers, cold starts, and size limits.
+          </p>
+        </div>
+        <div class="rounded-lg border border-border bg-card p-6">
+          <h3 class="text-xl font-bold text-foreground mb-3">Error Handling</h3>
+          <p class="text-muted-foreground">
+            Timeouts, memory leaks, zombie processes. Every edge case is yours to debug and fix.
+          </p>
+        </div>
+        <div class="rounded-lg border border-border bg-card p-6">
+          <h3 class="text-xl font-bold text-foreground mb-3">Scaling Issues</h3>
+          <p class="text-muted-foreground">
+            Concurrent browser instances eat memory. Need queues, workers, monitoring, and auto-scaling.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- When to Use Which -->
+    <section class="mb-16">
+      <h2 class="text-3xl font-bold text-foreground mb-8">
+        When to Use Which
+      </h2>
+      <div class="grid md:grid-cols-2 gap-8">
+        <div class="rounded-lg border border-border bg-card p-8">
+          <h3 class="text-xl font-bold text-foreground mb-6">Use ShotAPI When:</h3>
+          <ul class="space-y-3">
+            <li class="flex items-start gap-3">
+              <span class="text-emerald-500 mt-1">✓</span>
+              <span class="text-muted-foreground">You just need screenshots, not full browser automation</span>
+            </li>
+            <li class="flex items-start gap-3">
+              <span class="text-emerald-500 mt-1">✓</span>
+              <span class="text-muted-foreground">You want to avoid infrastructure headaches</span>
+            </li>
+            <li class="flex items-start gap-3">
+              <span class="text-emerald-500 mt-1">✓</span>
+              <span class="text-muted-foreground">You need reliable, maintained service</span>
+            </li>
+            <li class="flex items-start gap-3">
+              <span class="text-emerald-500 mt-1">✓</span>
+              <span class="text-muted-foreground">You're taking screenshots of public URLs</span>
+            </li>
+            <li class="flex items-start gap-3">
+              <span class="text-emerald-500 mt-1">✓</span>
+              <span class="text-muted-foreground">You want predictable costs and scaling</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="rounded-lg border border-border bg-card p-8">
+          <h3 class="text-xl font-bold text-foreground mb-6">Use Puppeteer When:</h3>
+          <ul class="space-y-3">
+            <li class="flex items-start gap-3">
+              <span class="text-emerald-500 mt-1">✓</span>
+              <span class="text-muted-foreground">You need complex browser automation (clicks, forms, scraping)</span>
+            </li>
+            <li class="flex items-start gap-3">
+              <span class="text-emerald-500 mt-1">✓</span>
+              <span class="text-muted-foreground">Screenshots are behind authentication/VPN</span>
+            </li>
+            <li class="flex items-start gap-3">
+              <span class="text-emerald-500 mt-1">✓</span>
+              <span class="text-muted-foreground">You're already running infrastructure for it</span>
+            </li>
+            <li class="flex items-start gap-3">
+              <span class="text-emerald-500 mt-1">✓</span>
+              <span class="text-muted-foreground">You need to inject custom JavaScript</span>
+            </li>
+            <li class="flex items-start gap-3">
+              <span class="text-emerald-500 mt-1">✓</span>
+              <span class="text-muted-foreground">You have in-house expertise to maintain it</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Comparison Table -->
+    <section class="mb-16">
+      <h2 class="text-3xl font-bold text-foreground mb-8">
+        Head-to-Head Comparison
+      </h2>
+      <div class="rounded-lg border border-border overflow-hidden">
+        <table class="w-full">
+          <thead class="bg-muted">
+            <tr>
+              <th class="text-left p-4 font-bold text-foreground">Aspect</th>
+              <th class="text-left p-4 font-bold text-foreground">ShotAPI</th>
+              <th class="text-left p-4 font-bold text-foreground">Puppeteer DIY</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-border">
+            <tr>
+              <td class="p-4 text-foreground font-medium">Setup Time</td>
+              <td class="p-4">
+                <span class="text-emerald-500">5 minutes</span>
+              </td>
+              <td class="p-4 text-muted-foreground">Hours to days</td>
+            </tr>
+            <tr class="bg-muted/30">
+              <td class="p-4 text-foreground font-medium">Lines of Code</td>
+              <td class="p-4">1 HTTP request</td>
+              <td class="p-4 text-muted-foreground">20-50+ lines</td>
+            </tr>
+            <tr>
+              <td class="p-4 text-foreground font-medium">Infrastructure</td>
+              <td class="p-4">None</td>
+              <td class="p-4 text-muted-foreground">Server, Docker, or Lambda layers</td>
+            </tr>
+            <tr class="bg-muted/30">
+              <td class="p-4 text-foreground font-medium">Maintenance</td>
+              <td class="p-4">Zero</td>
+              <td class="p-4 text-muted-foreground">Ongoing (updates, monitoring, debugging)</td>
+            </tr>
+            <tr>
+              <td class="p-4 text-foreground font-medium">Scaling</td>
+              <td class="p-4">Automatic</td>
+              <td class="p-4 text-muted-foreground">Manual (queues, workers, auto-scaling)</td>
+            </tr>
+            <tr class="bg-muted/30">
+              <td class="p-4 text-foreground font-medium">Cost (1,000 screenshots)</td>
+              <td class="p-4">$1.80 (or free tier)</td>
+              <td class="p-4 text-muted-foreground">Server costs + engineering time</td>
+            </tr>
+            <tr>
+              <td class="p-4 text-foreground font-medium">Browser Automation</td>
+              <td class="p-4 text-muted-foreground">Not supported</td>
+              <td class="p-4"><span class="text-emerald-500">Full control</span></td>
+            </tr>
+            <tr class="bg-muted/30">
+              <td class="p-4 text-foreground font-medium">Private URLs</td>
+              <td class="p-4 text-muted-foreground">Not supported</td>
+              <td class="p-4"><span class="text-emerald-500">Supported</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Code Comparison -->
+    <section class="mb-16">
+      <h2 class="text-3xl font-bold text-foreground mb-8">
+        Code Comparison
+      </h2>
+
+      <div class="mb-8">
+        <h3 class="text-xl font-bold text-foreground mb-4">Puppeteer (20+ lines)</h3>
+        <pre class="border-none bg-transparent p-0 text-sm"><code class="block bg-zinc-950 p-4 rounded-lg overflow-x-auto" set:html={puppeteerCode}></code></pre>
+      </div>
+
+      <div>
+        <h3 class="text-xl font-bold text-foreground mb-4">ShotAPI (1 line)</h3>
+        <pre class="border-none bg-transparent p-0 text-sm"><code class="block bg-zinc-950 p-4 rounded-lg overflow-x-auto"><span class="text-emerald-400">curl</span> <span class="text-amber-300">"https://shotapi.io/api/screenshot?url=https://example.com"</span> \
+  <span class="text-violet-400">-H</span> <span class="text-amber-300">"X-API-Key: YOUR_KEY"</span></code></pre>
+      </div>
+    </section>
+
+    <!-- Real Cost of DIY -->
+    <section class="mb-16">
+      <div class="rounded-lg border border-border bg-card p-8">
+        <h2 class="text-3xl font-bold text-foreground mb-6">
+          The Real Cost of DIY
+        </h2>
+        <div class="space-y-4 text-muted-foreground">
+          <p>
+            <span class="font-bold text-foreground">Initial setup:</span> 4-8 hours to get Puppeteer working reliably in production ($200-400 of engineering time at $50/hr)
+          </p>
+          <p>
+            <span class="font-bold text-foreground">Infrastructure:</span> $20-50/month for a server with enough RAM for Chrome instances
+          </p>
+          <p>
+            <span class="font-bold text-foreground">Maintenance:</span> 2-4 hours/month dealing with updates, bugs, and scaling issues ($100-200/month)
+          </p>
+          <p>
+            <span class="font-bold text-foreground">Opportunity cost:</span> Time not spent on your core product
+          </p>
+          <p class="pt-4 text-lg">
+            <span class="font-bold text-foreground">Total first month:</span> $520-850 in time + infrastructure
+          </p>
+          <p class="text-lg">
+            <span class="font-bold text-foreground">ShotAPI first month:</span> $0 (free tier) or $9 (5,000 screenshots)
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="text-center">
+      <div class="rounded-lg border border-border bg-card p-12">
+        <h2 class="text-3xl font-bold text-foreground mb-4">
+          Stop Maintaining Puppeteer
+        </h2>
+        <p class="text-xl text-muted-foreground mb-8">
+          Start with 100 free screenshots per day. Upgrade when you need more. No infrastructure required.
+        </p>
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+          <a
+            href="/docs"
+            class="inline-block px-8 py-4 rounded-lg bg-primary text-primary-foreground font-bold hover:opacity-90 transition-opacity"
+          >
+            View Documentation
+          </a>
+          <a
+            href="https://dashboard.shotapi.io"
+            class="inline-block px-8 py-4 rounded-lg border border-border text-foreground font-bold hover:bg-muted transition-colors"
+          >
+            Get Started Free
+          </a>
+        </div>
+      </div>
+    </section>
+  </div>
+</Layout>

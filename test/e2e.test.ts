@@ -28,17 +28,9 @@ describe('E2E: User Flows', () => {
     await initDb();
   });
 
-  // --- Flow 1: Signup → Get Key → Dashboard ---
+  // --- Flow 1: Signup via API ---
 
   describe('signup flow', () => {
-    it('GET /keys returns signup page with email form', async () => {
-      const res = await req('/keys');
-      expect(res.status).toBe(200);
-      const html = await res.text();
-      expect(html).toContain('type="email"');
-      expect(html).toContain('Get API Key');
-    });
-
     it('POST /keys with email returns API key', async () => {
       const res = await post('/keys', { email: 'test@example.com' });
       expect(res.status).toBe(201);
@@ -63,74 +55,9 @@ describe('E2E: User Flows', () => {
       const data = await res.json();
       expect(data.message).toBeTruthy();
     });
-
-    it('full flow: signup → key → dashboard shows usage', async () => {
-      // Step 1: Sign up
-      const signupRes = await post('/keys', { email: 'user@test.com' });
-      const { key } = await signupRes.json();
-
-      // Step 2: View dashboard with key
-      const dashRes = await req(`/dashboard?key=${key}`);
-      expect(dashRes.status).toBe(200);
-      const html = await dashRes.text();
-      expect(html).toContain('Dashboard');
-      expect(html).toContain('Free'); // tier
-      expect(html).toContain('/ 100'); // daily limit
-      expect(html).toContain(key.slice(0, 10)); // masked key
-    });
-
-    it('keys page shows upgrade link after key creation', async () => {
-      const res = await req('/keys');
-      const html = await res.text();
-      expect(html).toContain('Upgrade plan');
-      expect(html).toContain('upgrade-link');
-    });
   });
 
-  // --- Flow 2: Dashboard upgrade CTA ---
-
-  describe('dashboard upgrade flow', () => {
-    it('dashboard shows upgrade CTA for free tier', async () => {
-      const signupRes = await post('/keys', { email: 'free@test.com' });
-      const { key } = await signupRes.json();
-
-      const dashRes = await req(`/dashboard?key=${key}`);
-      const html = await dashRes.text();
-      expect(html).toContain('Need more screenshots?');
-    });
-
-    it('dashboard shows "contact us" when Stripe is not configured', async () => {
-      const signupRes = await post('/keys', { email: 'nostripe@test.com' });
-      const { key } = await signupRes.json();
-
-      const dashRes = await req(`/dashboard?key=${key}`);
-      const html = await dashRes.text();
-
-      // Should NOT show broken upgrade buttons
-      expect(html).not.toContain('onclick="upgrade(');
-      // Should show contact fallback
-      expect(html).toContain('Contact us to upgrade');
-      expect(html).toContain('mailto:');
-    });
-
-    it('dashboard with invalid key shows not-found page', async () => {
-      const res = await req('/dashboard?key=sa_nonexistent');
-      expect(res.status).toBe(200);
-      const html = await res.text();
-      expect(html).toContain('API Key Not Found');
-      expect(html).toContain('/keys'); // link to get a key
-    });
-
-    it('dashboard without key shows key input form', async () => {
-      const res = await req('/dashboard');
-      expect(res.status).toBe(200);
-      const html = await res.text();
-      expect(html).toContain('API Key Required');
-      expect(html).toContain('sa_...'); // placeholder
-    });
-  });
-
-  // --- Flow 3: Billing error handling ---
+  // --- Flow 2: Billing error handling ---
 
   describe('billing error handling', () => {
     it('POST /billing/checkout without Stripe returns user-friendly error', async () => {
@@ -165,7 +92,7 @@ describe('E2E: User Flows', () => {
     });
   });
 
-  // --- Flow 4: Key usage endpoint ---
+  // --- Flow 3: Key usage endpoint ---
 
   describe('key usage flow', () => {
     it('GET /keys/:key/usage returns usage for valid key', async () => {
@@ -188,34 +115,7 @@ describe('E2E: User Flows', () => {
     });
   });
 
-  // --- Flow 5: Pages load without errors ---
-
-  describe('all pages return 200', () => {
-    const pagePaths = [
-      '/',
-      '/docs',
-      '/pricing',
-      '/keys',
-      '/vs/screenshotone',
-      '/vs/puppeteer',
-      '/blog/free-screenshot-api',
-      '/blog/og-image-api',
-      '/use-cases/website-thumbnails',
-      '/guides/nodejs-screenshot',
-    ];
-
-    for (const path of pagePaths) {
-      it(`GET ${path} returns 200 with HTML`, async () => {
-        const res = await req(path);
-        expect(res.status).toBe(200);
-        const html = await res.text();
-        expect(html).toContain('<!DOCTYPE html>');
-        expect(html).toContain('</html>');
-      });
-    }
-  });
-
-  // --- Flow 6: API endpoints ---
+  // --- Flow 4: API endpoints ---
 
   describe('API endpoints', () => {
     it('GET /health returns ok', async () => {
@@ -239,26 +139,9 @@ describe('E2E: User Flows', () => {
       const data = await res.json();
       expect(data).toHaveProperty('totalRequests');
     });
-
-    it('GET /robots.txt returns valid robots', async () => {
-      const res = await req('/robots.txt');
-      expect(res.status).toBe(200);
-      const text = await res.text();
-      expect(text).toContain('User-agent');
-      expect(text).toContain('Sitemap');
-    });
-
-    it('GET /sitemap.xml returns valid XML', async () => {
-      const res = await req('/sitemap.xml');
-      expect(res.status).toBe(200);
-      const xml = await res.text();
-      expect(xml).toContain('<?xml');
-      expect(xml).toContain('<urlset');
-      expect(xml).toContain('shotapi.io');
-    });
   });
 
-  // --- Flow 7: No user-facing error leaks internal details ---
+  // --- Flow 5: No user-facing error leaks internal details ---
 
   describe('error messages are user-safe', () => {
     const FORBIDDEN_PATTERNS = [

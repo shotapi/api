@@ -1,0 +1,132 @@
+---
+import Layout from "../layouts/Layout.astro";
+import DashboardUpgrade from "../islands/DashboardUpgrade.tsx";
+
+const apiKey = Astro.url.searchParams.get("key");
+
+// Dashboard data - fetched server-side from the Hono API
+let keyInfo: any = null;
+let days: { date: string; count: number }[] = [];
+let totalRequests = 0;
+let todayUsage = 0;
+let dailyLimit = 100;
+let tier = "free";
+let maxCount = 1;
+
+if (apiKey) {
+  try {
+    // Fetch usage from the API
+    const baseUrl = `http://localhost:${process.env.PORT || 3000}`;
+    const usageRes = await fetch(`${baseUrl}/keys/${apiKey}/usage`);
+    if (usageRes.ok) {
+      const data = await usageRes.json();
+      tier = data.tier;
+      todayUsage = data.usage.today;
+      dailyLimit = data.usage.dailyLimit;
+      totalRequests = data.usage.total;
+      keyInfo = data;
+    }
+  } catch {
+    // If API fetch fails (e.g., during build), we'll show empty state
+  }
+}
+
+const DAILY_LIMITS: Record<string, number> = {
+  free: 100,
+  starter: 2500,
+  pro: 10000,
+};
+
+const hasStripe = !!import.meta.env.STRIPE_SECRET_KEY || !!process.env.STRIPE_SECRET_KEY;
+---
+
+<Layout
+  title="Dashboard — ShotAPI"
+  description="View your ShotAPI usage and manage your account."
+  path="/dashboard"
+>
+  {!apiKey ? (
+    <div class="mx-auto max-w-4xl px-4 py-16 text-center">
+      <h1 class="mb-4 text-2xl font-bold text-foreground">API Key Required</h1>
+      <p class="mb-6 text-muted-foreground">
+        Provide your API key to view your dashboard.
+      </p>
+      <form
+        class="mx-auto flex max-w-md gap-2"
+        onsubmit="event.preventDefault(); window.location.href='/dashboard?key=' + document.getElementById('key-input').value;"
+      >
+        <input
+          id="key-input"
+          type="text"
+          placeholder="sa_..."
+          class="flex-1 rounded-md border border-input bg-background px-4 py-2 text-foreground placeholder-muted-foreground focus:border-ring focus:outline-none"
+        />
+        <button
+          type="submit"
+          class="rounded-md bg-primary px-6 py-2 font-medium text-primary-foreground transition hover:bg-primary/90"
+        >
+          View
+        </button>
+      </form>
+    </div>
+  ) : !keyInfo ? (
+    <div class="mx-auto max-w-4xl px-4 py-16 text-center">
+      <h1 class="mb-4 text-2xl font-bold text-foreground">API Key Not Found</h1>
+      <p class="text-muted-foreground">The provided API key does not exist.</p>
+      <a
+        href="/keys"
+        class="mt-6 inline-block rounded-md bg-primary px-6 py-3 font-medium text-primary-foreground transition hover:bg-primary/90"
+      >
+        Get an API Key
+      </a>
+    </div>
+  ) : (
+    <div class="mx-auto max-w-4xl px-4 py-12 sm:px-6">
+      <h1 class="mb-2 text-3xl font-bold text-foreground">Dashboard</h1>
+      <p class="mb-8 text-muted-foreground">Usage overview for your API key</p>
+
+      <!-- Key info -->
+      <div class="mb-8 grid grid-cols-1 gap-4 md:grid-cols-4">
+        <div class="rounded-lg border border-border bg-card p-4">
+          <p class="mb-1 text-sm text-muted-foreground">Plan</p>
+          <p class="text-xl font-bold capitalize text-foreground">{tier}</p>
+        </div>
+        <div class="rounded-lg border border-border bg-card p-4">
+          <p class="mb-1 text-sm text-muted-foreground">Today</p>
+          <p class="text-xl font-bold text-foreground">
+            {todayUsage}
+            <span class="text-sm text-muted-foreground">/ {dailyLimit}</span>
+          </p>
+        </div>
+        <div class="rounded-lg border border-border bg-card p-4">
+          <p class="mb-1 text-sm text-muted-foreground">Total Requests</p>
+          <p class="text-xl font-bold text-foreground">
+            {totalRequests.toLocaleString()}
+          </p>
+        </div>
+        <div class="rounded-lg border border-border bg-card p-4">
+          <p class="mb-1 text-sm text-muted-foreground">API Key</p>
+          <p class="truncate font-mono text-sm text-foreground/80">
+            {apiKey.slice(0, 10)}...{apiKey.slice(-4)}
+          </p>
+        </div>
+      </div>
+
+      {tier === "free" && (
+        <div class="rounded-lg border border-border bg-card p-6 text-center">
+          <h2 class="mb-2 text-xl font-bold text-foreground">
+            Need more screenshots?
+          </h2>
+          <p class="mb-4 text-muted-foreground">
+            Upgrade your plan for higher daily limits.
+          </p>
+          <DashboardUpgrade
+            client:load
+            apiKey={apiKey}
+            hasStripe={hasStripe}
+          />
+        </div>
+      )}
+    </div>
+  )}
+</Layout>
