@@ -27,3 +27,6 @@ coverage/
 *.db
 *.db-wal
 *.db-shm
+
+# Astro symlink (local dev only — Dockerfile copies build output)
+astro

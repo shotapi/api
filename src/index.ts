@@ -1,9 +1,13 @@
 import http from 'node:http';
-import { serve } from '@hono/node-server';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { logger } from 'hono/logger';
 import { closeBrowser } from './screenshot.js';
 import { initDb, resetClient } from './db.js';
 import app from './app.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Logger only in production (noisy in tests)
 app.use('*', logger());
@@ -64,8 +68,37 @@ async function start() {
       // Hono handles API routes (and all routes if Astro isn't built)
       honoListener(req, res);
     } else if (pathname.startsWith('/_astro/')) {
-      // Astro client-side assets
-      astroHandler(req, res);
+      // Serve Astro client-side assets (CSS, JS) from build output
+      const clientDir = path.resolve(__dirname, '..', 'astro', 'dist', 'client');
+      const filePath = path.join(clientDir, pathname);
+      // Prevent path traversal
+      if (!filePath.startsWith(clientDir)) {
+        res.writeHead(403);
+        res.end();
+        return;
+      }
+      const ext = path.extname(filePath);
+      const contentTypes: Record<string, string> = {
+        '.css': 'text/css',
+        '.js': 'application/javascript',
+        '.mjs': 'application/javascript',
+        '.woff2': 'font/woff2',
+        '.woff': 'font/woff',
+        '.png': 'image/png',
+        '.svg': 'image/svg+xml',
+      };
+      fs.readFile(filePath, (err, data) => {
+        if (err) {
+          res.writeHead(404);
+          res.end('Not found');
+          return;
+        }
+        res.writeHead(200, {
+          'Content-Type': contentTypes[ext] || 'application/octet-stream',
+          'Cache-Control': 'public, max-age=31536000, immutable',
+        });
+        res.end(data);
+      });
     } else {
       // Page routes -> Astro SSR, with Hono fallback
       astroHandler(req, res, () => {
