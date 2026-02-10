@@ -84,32 +84,53 @@ billing.post('/webhook', async (c) => {
     const db = getClient();
     const data = event.data as unknown as Record<string, unknown>;
     const metadata = (data.metadata || {}) as Record<string, string>;
-    const apiKey = metadata.api_key;
-    const subscriptionId = data.subscription_id as string || data.id as string;
+    const customer = (data.customer || {}) as Record<string, string>;
+    const subscriptionId = data.subscription_id as string;
+    const customerId = customer.customer_id as string;
+    const customerEmail = customer.email as string;
+
+    // Resolve API key: prefer metadata, fall back to email lookup
+    let apiKey = metadata.api_key;
+    if (!apiKey && customerEmail) {
+      const emailResult = await db.execute({
+        sql: 'SELECT key FROM api_keys WHERE email = ? LIMIT 1',
+        args: [customerEmail],
+      });
+      if (emailResult.rows.length > 0) {
+        apiKey = emailResult.rows[0].key as string;
+      }
+    }
+
+    console.log(`Webhook ${event.type}: apiKey=${apiKey ? 'found' : 'missing'}, subscriptionId=${subscriptionId}, customerId=${customerId}`);
 
     switch (event.type) {
       case 'subscription.active': {
         if (apiKey && subscriptionId) {
           const productId = data.product_id as string;
           const tier = determineTier(productId);
-          const customerId = data.customer_id as string;
 
           await db.execute({
             sql: 'UPDATE api_keys SET tier = ?, dodo_customer_id = ?, dodo_subscription_id = ? WHERE key = ?',
             args: [tier, customerId || null, subscriptionId, apiKey],
           });
+          console.log(`Upgraded ${apiKey} to ${tier}`);
         }
         break;
       }
 
       case 'subscription.plan_changed': {
-        if (subscriptionId) {
-          const productId = data.product_id as string;
-          const tier = determineTier(productId);
+        const productId = data.product_id as string;
+        const tier = determineTier(productId);
 
+        if (subscriptionId) {
           await db.execute({
             sql: 'UPDATE api_keys SET tier = ? WHERE dodo_subscription_id = ?',
             args: [tier, subscriptionId],
+          });
+        } else if (apiKey) {
+          await db.execute({
+            sql: 'UPDATE api_keys SET tier = ? WHERE key = ?',
+            args: [tier, apiKey],
           });
         }
         break;
