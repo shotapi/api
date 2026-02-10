@@ -5,8 +5,8 @@ export interface ApiKeyInfo {
   key: string;
   email: string;
   tier: 'free' | 'starter' | 'pro';
-  stripeCustomerId?: string;
-  stripeSubscriptionId?: string;
+  dodoCustomerId?: string;
+  dodoSubscriptionId?: string;
   createdAt: string;
   lastUsedAt?: string;
 }
@@ -46,8 +46,8 @@ export async function validateApiKey(key: string): Promise<ApiKeyInfo | null> {
     key: row.key as string,
     email: row.email as string,
     tier: row.tier as 'free' | 'starter' | 'pro',
-    stripeCustomerId: (row.stripe_customer_id as string) || undefined,
-    stripeSubscriptionId: (row.stripe_subscription_id as string) || undefined,
+    dodoCustomerId: (row.dodo_customer_id as string) || undefined,
+    dodoSubscriptionId: (row.dodo_subscription_id as string) || undefined,
     createdAt: row.created_at as string,
     lastUsedAt: (row.last_used_at as string) || undefined,
   };

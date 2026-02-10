@@ -18,8 +18,8 @@ export async function initDb(): Promise<void> {
       key TEXT PRIMARY KEY,
       email TEXT NOT NULL,
       tier TEXT NOT NULL DEFAULT 'free',
-      stripe_customer_id TEXT,
-      stripe_subscription_id TEXT,
+      dodo_customer_id TEXT,
+      dodo_subscription_id TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       last_used_at TEXT
     )`,

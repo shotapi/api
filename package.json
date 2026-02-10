@@ -13,10 +13,10 @@
   "dependencies": {
     "@hono/node-server": "^1.8.0",
     "@libsql/client": "^0.14.0",
+    "dodopayments": "^2.19.0",
     "hono": "^4.0.0",
     "playwright": "^1.41.0",
-    "sharp": "^0.33.0",
-    "stripe": "^20.3.1"
+    "sharp": "^0.33.0"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
