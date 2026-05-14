@@ -495,6 +495,279 @@ describe('parseParams', () => {
     });
   });
 
+  // ── Extended formats ────────────────────────────────────────────
+
+  describe('extended formats', () => {
+    it('accepts gif, tiff, avif, heif formats', () => {
+      expect(parse({ format: 'gif' }).format).toBe('gif');
+      expect(parse({ format: 'tiff' }).format).toBe('tiff');
+      expect(parse({ format: 'avif' }).format).toBe('avif');
+      expect(parse({ format: 'heif' }).format).toBe('heif');
+    });
+
+    it('accepts html and markdown output formats', () => {
+      expect(parse({ format: 'html' }).format).toBe('html');
+      expect(parse({ format: 'markdown' }).format).toBe('markdown');
+    });
+
+    it('accepts empty response type', () => {
+      expect(parse({ response_type: 'empty' }).response_type).toBe('empty');
+    });
+  });
+
+  // ── Viewport extensions ────────────────────────────────────────
+
+  describe('viewport extensions', () => {
+    it('viewport_landscape swaps dimensions when width < height', () => {
+      const p = parse({ viewport_width: '768', viewport_height: '1024', viewport_landscape: 'true' });
+      expect(p.viewport_width).toBe(1024);
+      expect(p.viewport_height).toBe(768);
+    });
+
+    it('viewport_landscape does nothing when width >= height', () => {
+      const p = parse({ viewport_width: '1920', viewport_height: '1080', viewport_landscape: 'true' });
+      expect(p.viewport_width).toBe(1920);
+      expect(p.viewport_height).toBe(1080);
+    });
+
+    it('viewport_device is passthrough', () => {
+      expect(parse({ viewport_device: 'iPhone 13' }).viewport_device).toBe('iPhone 13');
+      expect(parse().viewport_device).toBeUndefined();
+    });
+  });
+
+  // ── Capture extensions ─────────────────────────────────────────
+
+  describe('capture extensions', () => {
+    it('full_page_scroll_by is optional positive int', () => {
+      expect(parse().full_page_scroll_by).toBeUndefined();
+      expect(parse({ full_page_scroll_by: '500' }).full_page_scroll_by).toBe(500);
+    });
+
+    it('full_page_algorithm defaults to default', () => {
+      expect(parse().full_page_algorithm).toBe('default');
+      expect(parse({ full_page_algorithm: 'by_sections' }).full_page_algorithm).toBe('by_sections');
+    });
+
+    it('selector_algorithm defaults to default', () => {
+      expect(parse().selector_algorithm).toBe('default');
+      expect(parse({ selector_algorithm: 'clip' }).selector_algorithm).toBe('clip');
+    });
+
+    it('selector_scroll_into_view defaults to false', () => {
+      expect(parse().selector_scroll_into_view).toBe(false);
+      expect(parse({ selector_scroll_into_view: 'true' }).selector_scroll_into_view).toBe(true);
+    });
+
+    it('scroll_into_view is optional', () => {
+      expect(parse().scroll_into_view).toBeUndefined();
+      expect(parse({ scroll_into_view: '#pricing' }).scroll_into_view).toBe('#pricing');
+    });
+
+    it('scroll_into_view_adjust_top defaults to 0', () => {
+      expect(parse().scroll_into_view_adjust_top).toBe(0);
+      expect(parse({ scroll_into_view_adjust_top: '50' }).scroll_into_view_adjust_top).toBe(50);
+    });
+  });
+
+  // ── PDF extensions ─────────────────────────────────────────────
+
+  describe('pdf extensions', () => {
+    it('pdf_fit_one_page defaults to false', () => {
+      expect(parse().pdf_fit_one_page).toBe(false);
+      expect(parse({ pdf_fit_one_page: 'true' }).pdf_fit_one_page).toBe(true);
+    });
+  });
+
+  // ── Customization extensions ───────────────────────────────────
+
+  describe('customization extensions', () => {
+    it('hover is optional', () => {
+      expect(parse().hover).toBeUndefined();
+      expect(parse({ hover: '#menu' }).hover).toBe('#menu');
+    });
+
+    it('scripts_wait_until parses events', () => {
+      expect(parse().scripts_wait_until).toBeUndefined();
+      expect(parse({ scripts_wait_until: 'networkidle' }).scripts_wait_until).toEqual(['networkidle']);
+    });
+
+    it('error_on_selector_not_found defaults to false', () => {
+      expect(parse().error_on_selector_not_found).toBe(false);
+    });
+
+    it('error_on_click_selector_not_found defaults to true', () => {
+      expect(parse().error_on_click_selector_not_found).toBe(true);
+    });
+
+    it('error_on_hover_selector_not_found defaults to true', () => {
+      expect(parse().error_on_hover_selector_not_found).toBe(true);
+    });
+  });
+
+  // ── Blocking extensions ────────────────────────────────────────
+
+  describe('blocking extensions', () => {
+    it('block_banners_by_heuristics defaults to false', () => {
+      expect(parse().block_banners_by_heuristics).toBe(false);
+      expect(parse({ block_banners_by_heuristics: 'true' }).block_banners_by_heuristics).toBe(true);
+    });
+
+    it('wait_for_selector_algorithm defaults to at_least_one', () => {
+      expect(parse().wait_for_selector_algorithm).toBe('at_least_one');
+      expect(parse({ wait_for_selector_algorithm: 'at_least_by_count' }).wait_for_selector_algorithm).toBe('at_least_by_count');
+    });
+  });
+
+  // ── Request extensions ─────────────────────────────────────────
+
+  describe('request extensions', () => {
+    it('authorization is optional', () => {
+      expect(parse().authorization).toBeUndefined();
+      expect(parse({ authorization: 'Bearer token' }).authorization).toBe('Bearer token');
+    });
+
+    it('proxy is optional', () => {
+      expect(parse().proxy).toBeUndefined();
+      expect(parse({ proxy: 'http://proxy:8080' }).proxy).toBe('http://proxy:8080');
+    });
+
+    it('ip_country_code accepts valid codes', () => {
+      expect(parse({ ip_country_code: 'us' }).ip_country_code).toBe('us');
+      expect(parse({ ip_country_code: 'GB' }).ip_country_code).toBe('gb');
+    });
+
+    it('ip_country_code rejects invalid codes', () => {
+      expect(parse({ ip_country_code: 'xx' }).ip_country_code).toBeUndefined();
+    });
+  });
+
+  // ── Error handling ─────────────────────────────────────────────
+
+  describe('error handling params', () => {
+    it('fail_if params are optional', () => {
+      const p = parse();
+      expect(p.fail_if_content_contains).toBeUndefined();
+      expect(p.fail_if_content_missing).toBeUndefined();
+      expect(p.fail_if_request_failed).toBeUndefined();
+    });
+
+    it('fail_if params pass through strings', () => {
+      const p = parse({
+        fail_if_content_contains: 'Access Denied',
+        fail_if_content_missing: 'Welcome',
+        fail_if_request_failed: '*.api.com',
+      });
+      expect(p.fail_if_content_contains).toBe('Access Denied');
+      expect(p.fail_if_content_missing).toBe('Welcome');
+      expect(p.fail_if_request_failed).toBe('*.api.com');
+    });
+  });
+
+  // ── Metadata ───────────────────────────────────────────────────
+
+  describe('metadata params', () => {
+    it('all metadata defaults to false', () => {
+      const p = parse();
+      expect(p.metadata_image_size).toBe(false);
+      expect(p.metadata_fonts).toBe(false);
+      expect(p.metadata_icon).toBe(false);
+      expect(p.metadata_open_graph).toBe(false);
+      expect(p.metadata_page_title).toBe(false);
+      expect(p.metadata_content).toBe(false);
+      expect(p.metadata_http_response_status_code).toBe(false);
+      expect(p.metadata_http_response_headers).toBe(false);
+    });
+
+    it('metadata_content_format defaults to html', () => {
+      expect(parse().metadata_content_format).toBe('html');
+      expect(parse({ metadata_content_format: 'markdown' }).metadata_content_format).toBe('markdown');
+    });
+  });
+
+  // ── Storage ────────────────────────────────────────────────────
+
+  describe('storage params', () => {
+    it('store defaults to false', () => {
+      expect(parse().store).toBe(false);
+    });
+
+    it('parses all storage params', () => {
+      const p = parse({
+        store: 'true',
+        storage_path: 'screenshots/test.png',
+        storage_bucket: 'my-bucket',
+      });
+      expect(p.store).toBe(true);
+      expect(p.storage_path).toBe('screenshots/test.png');
+      expect(p.storage_bucket).toBe('my-bucket');
+    });
+  });
+
+  // ── Async / Webhooks ───────────────────────────────────────────
+
+  describe('async params', () => {
+    it('async defaults to false', () => {
+      expect(parse().async).toBe(false);
+    });
+
+    it('webhook_sign defaults to true', () => {
+      expect(parse().webhook_sign).toBe(true);
+    });
+
+    it('parses webhook options', () => {
+      const p = parse({
+        async: 'true',
+        webhook_url: 'https://hooks.example.com/cb',
+        webhook_sign: 'false',
+      });
+      expect(p.async).toBe(true);
+      expect(p.webhook_url).toBe('https://hooks.example.com/cb');
+      expect(p.webhook_sign).toBe(false);
+    });
+  });
+
+  // ── OpenAI Vision ──────────────────────────────────────────────
+
+  describe('openai vision params', () => {
+    it('all optional by default', () => {
+      const p = parse();
+      expect(p.openai_api_key).toBeUndefined();
+      expect(p.vision_prompt).toBeUndefined();
+      expect(p.vision_max_tokens).toBeUndefined();
+    });
+
+    it('parses vision params', () => {
+      const p = parse({
+        openai_api_key: 'sk-test',
+        vision_prompt: 'Describe the page',
+        vision_max_tokens: '500',
+      });
+      expect(p.openai_api_key).toBe('sk-test');
+      expect(p.vision_prompt).toBe('Describe the page');
+      expect(p.vision_max_tokens).toBe(500);
+    });
+  });
+
+  // ── Other ──────────────────────────────────────────────────────
+
+  describe('other params', () => {
+    it('attachment_name and external_identifier are optional', () => {
+      expect(parse().attachment_name).toBeUndefined();
+      expect(parse().external_identifier).toBeUndefined();
+      expect(parse({ attachment_name: 'test.png' }).attachment_name).toBe('test.png');
+      expect(parse({ external_identifier: 'req-123' }).external_identifier).toBe('req-123');
+    });
+
+    it('request_gpu_rendering defaults to false', () => {
+      expect(parse().request_gpu_rendering).toBe(false);
+    });
+
+    it('include_shadow_dom defaults to false', () => {
+      expect(parse().include_shadow_dom).toBe(false);
+    });
+  });
+
   // ── Edge cases ─────────────────────────────────────────────────
 
   describe('edge cases', () => {

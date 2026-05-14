@@ -107,7 +107,13 @@ const CONTENT_TYPES: Record<string, string> = {
   png: 'image/png',
   jpeg: 'image/jpeg',
   webp: 'image/webp',
+  gif: 'image/gif',
+  tiff: 'image/tiff',
+  avif: 'image/avif',
+  heif: 'image/heif',
   pdf: 'application/pdf',
+  html: 'text/html',
+  markdown: 'text/markdown',
 };
 
 async function handleScreenshot(c: Context, rawParams: Record<string, string>) {
@@ -148,12 +154,27 @@ async function handleScreenshot(c: Context, rawParams: Record<string, string>) {
   try {
     const params = parseParams(rawParams);
 
+    // Unsupported feature warnings
+    if (params.store) {
+      return c.json({ error: true, message: 'S3 storage is not yet supported. Use response_type=json to get base64 output.' }, 501);
+    }
+    if (params.async) {
+      return c.json({ error: true, message: 'Async/webhook mode is not yet supported.' }, 501);
+    }
+    if (params.openai_api_key) {
+      return c.json({ error: true, message: 'OpenAI Vision integration is not yet supported.' }, 501);
+    }
+    if (params.proxy || params.ip_country_code) {
+      return c.json({ error: true, message: 'Proxy/geo-proxy is not yet supported.' }, 501);
+    }
+
     // Check cache first
     if (params.cache) {
       const key = cacheKey(params);
       const cached = cacheGet(key);
       if (cached) {
         c.header('X-Cache', 'HIT');
+        if (params.external_identifier) c.header('X-External-Identifier', params.external_identifier);
         if (params.response_type === 'json') {
           return c.json({
             screenshot: cached.buffer.toString('base64'),
@@ -162,8 +183,12 @@ async function handleScreenshot(c: Context, rawParams: Record<string, string>) {
             ...cached.metadata,
           });
         }
+        if (params.response_type === 'empty') {
+          return new Response(null, { status: 200, headers: c.res.headers });
+        }
         c.header('Content-Type', cached.contentType);
         c.header('Cache-Control', `public, max-age=${params.cache_ttl}`);
+        if (params.attachment_name) c.header('Content-Disposition', `attachment; filename="${params.attachment_name}"`);
         return new Response(new Uint8Array(cached.buffer), { headers: c.res.headers });
       }
       c.header('X-Cache', 'MISS');
@@ -175,7 +200,6 @@ async function handleScreenshot(c: Context, rawParams: Record<string, string>) {
 
     const sourceUrl = params.url || (params.html ? 'html:inline' : 'markdown:inline');
 
-    // Log request to database
     await logRequest({
       apiKey,
       ip,
@@ -185,12 +209,20 @@ async function handleScreenshot(c: Context, rawParams: Record<string, string>) {
       status: 'success',
     });
 
-    const contentType = CONTENT_TYPES[params.format];
+    const contentType = CONTENT_TYPES[params.format] || 'application/octet-stream';
 
     // Store in cache
     if (params.cache) {
       const key = cacheKey(params);
       cacheSet(key, { buffer: result.buffer, metadata: result.metadata, contentType }, params.cache_ttl);
+    }
+
+    if (params.external_identifier) c.header('X-External-Identifier', params.external_identifier);
+
+    // Empty response
+    if (params.response_type === 'empty') {
+      c.header('X-Screenshot-Duration-Ms', duration.toString());
+      return new Response(null, { status: 200, headers: c.res.headers });
     }
 
     // JSON response
@@ -208,6 +240,7 @@ async function handleScreenshot(c: Context, rawParams: Record<string, string>) {
     c.header('Content-Type', contentType);
     c.header('X-Screenshot-Duration-Ms', duration.toString());
     c.header('Cache-Control', params.cache ? `public, max-age=${params.cache_ttl}` : 'public, max-age=3600');
+    if (params.attachment_name) c.header('Content-Disposition', `attachment; filename="${params.attachment_name}"`);
 
     return new Response(new Uint8Array(result.buffer), {
       headers: c.res.headers,

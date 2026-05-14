@@ -1,6 +1,6 @@
 import { chromium, type Browser, type Page, type BrowserContext, type Route } from 'playwright';
 import sharp from 'sharp';
-import type { ScreenshotParams, WaitUntilEvent } from './params.js';
+import type { ScreenshotParams, WaitUntilEvent, OutputFormat } from './params.js';
 
 let browser: Browser | null = null;
 
@@ -26,10 +26,7 @@ export async function closeBrowser(): Promise<void> {
   }
 }
 
-// Map our wait_until values to Playwright's
 function toPlaywrightWaitUntil(events: WaitUntilEvent[]): 'load' | 'domcontentloaded' | 'networkidle' | 'commit' {
-  // Playwright page.goto accepts a single waitUntil value.
-  // Priority: networkidle > load > domcontentloaded > commit
   if (events.includes('networkidle')) return 'networkidle';
   if (events.includes('load')) return 'load';
   if (events.includes('domcontentloaded')) return 'domcontentloaded';
@@ -46,7 +43,14 @@ const MARKDOWN_TEMPLATE = (md: string) => `<!DOCTYPE html>
 <script>document.getElementById('content').innerHTML=marked.parse(${JSON.stringify(md)});<\/script>
 </body></html>`;
 
-export async function takeScreenshot(params: ScreenshotParams): Promise<{ buffer: Buffer; metadata?: Record<string, unknown> }> {
+export interface ScreenshotResult {
+  buffer: Buffer;
+  metadata?: Record<string, unknown>;
+  httpStatusCode?: number;
+  httpHeaders?: Record<string, string>;
+}
+
+export async function takeScreenshot(params: ScreenshotParams): Promise<ScreenshotResult> {
   const browser = await getBrowser();
 
   const contextOptions: Parameters<Browser['newContext']>[0] = {
@@ -85,18 +89,21 @@ export async function takeScreenshot(params: ScreenshotParams): Promise<{ buffer
   const context = await browser.newContext(contextOptions);
   const page = await context.newPage();
 
+  let httpStatusCode: number | undefined;
+  let httpHeaders: Record<string, string> | undefined;
+
   try {
-    // Set up request blocking before navigation
-    if (params.block_requests.length > 0 || params.block_resources.length > 0) {
+    // Set up request blocking/tracking before navigation
+    const failedRequestPatterns = params.fail_if_request_failed ? parseStringList(params.fail_if_request_failed) : [];
+
+    if (params.block_requests.length > 0 || params.block_resources.length > 0 || failedRequestPatterns.length > 0) {
       await page.route('**/*', (route: Route) => {
         const request = route.request();
 
-        // Block by resource type
         if (params.block_resources.length > 0 && params.block_resources.includes(request.resourceType())) {
           return route.abort();
         }
 
-        // Block by URL pattern
         if (params.block_requests.length > 0) {
           const url = request.url();
           for (const pattern of params.block_requests) {
@@ -108,8 +115,11 @@ export async function takeScreenshot(params: ScreenshotParams): Promise<{ buffer
       });
     }
 
-    // Apply custom headers before navigation
-    if (params.headers) {
+    // Apply authorization header
+    if (params.authorization) {
+      const authHeaders = params.headers ? { ...params.headers, Authorization: params.authorization } : { Authorization: params.authorization };
+      await page.setExtraHTTPHeaders(authHeaders);
+    } else if (params.headers) {
       await page.setExtraHTTPHeaders(params.headers);
     }
 
@@ -129,7 +139,6 @@ export async function takeScreenshot(params: ScreenshotParams): Promise<{ buffer
       await context.addCookies(cookiesForPlaywright);
     }
 
-    // Emulate media type
     if (params.media_type) {
       await page.emulateMedia({ media: params.media_type });
     }
@@ -140,21 +149,31 @@ export async function takeScreenshot(params: ScreenshotParams): Promise<{ buffer
 
     if (params.url) {
       const response = await page.goto(params.url, { waitUntil, timeout: navigationTimeout });
-      if (!params.ignore_host_errors && response && !response.ok() && response.status() !== 304) {
-        throw new Error(`Navigation failed with status ${response.status()}`);
+      if (response) {
+        httpStatusCode = response.status();
+        httpHeaders = Object.fromEntries(
+          Object.entries(response.headers()).map(([k, v]) => [k, v])
+        );
+        if (!params.ignore_host_errors && !response.ok() && response.status() !== 304) {
+          throw new Error(`Navigation failed with status ${response.status()}`);
+        }
       }
     } else if (params.html) {
       await page.setContent(params.html, { waitUntil, timeout: navigationTimeout });
     } else if (params.markdown) {
       await page.setContent(MARKDOWN_TEMPLATE(params.markdown), { waitUntil, timeout: navigationTimeout });
-      // Wait for marked.js to render
       await page.waitForFunction(() => {
         const el = document.getElementById('content');
         return el && el.innerHTML.length > 0;
       }, { timeout: 5000 });
     }
 
-    // Wait for a specific selector if requested
+    // Check fail_if_request_failed patterns
+    if (failedRequestPatterns.length > 0) {
+      await checkFailedRequests(page, failedRequestPatterns);
+    }
+
+    // Wait for a specific selector
     if (params.wait_for_selector) {
       await page.waitForSelector(params.wait_for_selector, { timeout: navigationTimeout });
     }
@@ -164,18 +183,14 @@ export async function takeScreenshot(params: ScreenshotParams): Promise<{ buffer
       await page.addStyleTag({ content: params.styles });
     }
 
-    // Block cookie banners
-    if (params.block_cookie_banners) {
+    // Block cookie banners (either method)
+    if (params.block_cookie_banners || params.block_banners_by_heuristics) {
       await hideCookieBanners(page);
     }
 
-    // Block chat widgets
     if (params.block_chats) {
       await hideChatWidgets(page);
     }
-
-    // Block trackers (inject after navigation to prevent tracking scripts from loading)
-    // Note: for pre-navigation blocking, use block_resources: ['script'] or block_requests
 
     // Hide user-specified selectors
     if (params.hide_selectors && params.hide_selectors.length > 0) {
@@ -185,13 +200,45 @@ export async function takeScreenshot(params: ScreenshotParams): Promise<{ buffer
     // Execute custom JavaScript
     if (params.scripts) {
       await page.evaluate(params.scripts);
+      if (params.scripts_wait_until) {
+        const scriptWait = toPlaywrightWaitUntil(params.scripts_wait_until);
+        if (scriptWait !== 'commit') {
+          await page.waitForLoadState(scriptWait);
+        }
+      }
     }
 
-    // Click element if requested
+    // Click element
     if (params.click) {
-      await page.click(params.click, { timeout: 3000 }).catch(() => {
-        throw new Error(`Click target not found: ${params.click}`);
-      });
+      try {
+        await page.click(params.click, { timeout: 3000 });
+      } catch {
+        if (params.error_on_click_selector_not_found) {
+          throw new Error(`Click target not found: ${params.click}`);
+        }
+      }
+    }
+
+    // Hover element
+    if (params.hover) {
+      try {
+        await page.hover(params.hover, { timeout: 3000 });
+      } catch {
+        if (params.error_on_hover_selector_not_found) {
+          throw new Error(`Hover target not found: ${params.hover}`);
+        }
+      }
+    }
+
+    // Scroll into view
+    if (params.scroll_into_view) {
+      await page.evaluate(([sel, adjust]) => {
+        const el = document.querySelector(sel);
+        if (el) {
+          el.scrollIntoView({ block: 'start' });
+          if (adjust) window.scrollBy(0, -adjust);
+        }
+      }, [params.scroll_into_view, params.scroll_into_view_adjust_top] as const);
     }
 
     // Wait for delay
@@ -201,13 +248,26 @@ export async function takeScreenshot(params: ScreenshotParams): Promise<{ buffer
 
     // Full page scroll to trigger lazy loading
     if (params.full_page && params.full_page_scroll) {
-      await scrollFullPage(page, params.full_page_scroll_delay, params.full_page_max_height);
+      await scrollFullPage(page, params.full_page_scroll_delay, params.full_page_max_height, params.full_page_scroll_by);
+    }
+
+    // Content validation
+    if (params.fail_if_content_contains || params.fail_if_content_missing) {
+      await validatePageContent(page, params.fail_if_content_contains, params.fail_if_content_missing);
+    }
+
+    // Collect metadata
+    const metadata: Record<string, unknown> = {};
+    await collectMetadata(page, params, metadata, httpStatusCode, httpHeaders);
+
+    // Handle html/markdown output formats
+    if (params.format === 'html' || params.format === 'markdown') {
+      const content = await extractPageContent(page, params.format, params.include_shadow_dom);
+      return { buffer: Buffer.from(content, 'utf-8'), metadata: Object.keys(metadata).length > 0 ? metadata : undefined, httpStatusCode, httpHeaders };
     }
 
     // Take screenshot
     let screenshot: Buffer;
-    const metadata: Record<string, unknown> = {};
-
     if (params.format === 'pdf') {
       screenshot = await capturePdf(page, params);
     } else {
@@ -221,7 +281,8 @@ export async function takeScreenshot(params: ScreenshotParams): Promise<{ buffer
         .toBuffer();
     }
 
-    if (params.response_type === 'json') {
+    // Add image size metadata for JSON responses
+    if (params.response_type === 'json' || params.metadata_image_size) {
       const img = sharp(screenshot);
       const meta = await img.metadata();
       metadata.width = meta.width;
@@ -230,7 +291,7 @@ export async function takeScreenshot(params: ScreenshotParams): Promise<{ buffer
       metadata.size = screenshot.length;
     }
 
-    return { buffer: screenshot, metadata: Object.keys(metadata).length > 0 ? metadata : undefined };
+    return { buffer: screenshot, metadata: Object.keys(metadata).length > 0 ? metadata : undefined, httpStatusCode, httpHeaders };
   } finally {
     await context.close();
   }
@@ -259,27 +320,57 @@ async function captureImage(page: Page, params: ScreenshotParams): Promise<Buffe
   if (params.selector) {
     const element = await page.$(params.selector);
     if (!element) {
-      throw new Error(`Element not found: ${params.selector}`);
+      if (params.error_on_selector_not_found) {
+        throw new Error(`Element not found: ${params.selector}`);
+      }
+      rawPng = await page.screenshot(captureOptions);
+    } else {
+      if (params.selector_scroll_into_view) {
+        await element.scrollIntoViewIfNeeded();
+      }
+      if (params.selector_algorithm === 'clip') {
+        const box = await element.boundingBox();
+        if (box) {
+          captureOptions.clip = { x: box.x, y: box.y, width: box.width, height: box.height };
+          rawPng = await page.screenshot(captureOptions);
+        } else {
+          rawPng = await element.screenshot(captureOptions);
+        }
+      } else {
+        rawPng = await element.screenshot(captureOptions);
+      }
     }
-    rawPng = await element.screenshot(captureOptions);
   } else {
     rawPng = await page.screenshot(captureOptions);
   }
 
-  // Convert to requested format via sharp
-  if (params.format === 'png') {
-    return rawPng;
-  } else if (params.format === 'webp') {
-    return sharp(rawPng).webp({ quality: params.image_quality }).toBuffer();
-  } else if (params.format === 'jpeg') {
-    return sharp(rawPng).jpeg({ quality: params.image_quality }).toBuffer();
+  return convertFormat(rawPng, params.format, params.image_quality);
+}
+
+async function convertFormat(rawPng: Buffer, format: OutputFormat, quality: number): Promise<Buffer> {
+  switch (format) {
+    case 'png':
+      return rawPng;
+    case 'webp':
+      return sharp(rawPng).webp({ quality }).toBuffer();
+    case 'jpeg':
+      return sharp(rawPng).jpeg({ quality }).toBuffer();
+    case 'gif':
+      return sharp(rawPng).gif().toBuffer();
+    case 'tiff':
+      return sharp(rawPng).tiff({ quality }).toBuffer();
+    case 'avif':
+      return sharp(rawPng).avif({ quality }).toBuffer();
+    case 'heif':
+      return sharp(rawPng).heif({ quality }).toBuffer();
+    default:
+      return rawPng;
   }
-  return rawPng;
 }
 
 async function capturePdf(page: Page, params: ScreenshotParams): Promise<Buffer> {
   const margin = params.pdf_margin || '0';
-  return page.pdf({
+  const pdfOptions: Parameters<Page['pdf']>[0] = {
     format: params.pdf_paper_format as any,
     printBackground: params.pdf_print_background,
     landscape: params.pdf_landscape,
@@ -289,14 +380,26 @@ async function capturePdf(page: Page, params: ScreenshotParams): Promise<Buffer>
       bottom: params.pdf_margin_bottom || margin,
       left: params.pdf_margin_left || margin,
     },
-  });
+  };
+
+  if (params.pdf_fit_one_page) {
+    const dimensions = await page.evaluate(() => ({
+      width: document.documentElement.scrollWidth,
+      height: document.documentElement.scrollHeight,
+    }));
+    pdfOptions.width = `${dimensions.width}px`;
+    pdfOptions.height = `${dimensions.height}px`;
+    pdfOptions.format = undefined;
+  }
+
+  return page.pdf(pdfOptions);
 }
 
-async function scrollFullPage(page: Page, scrollDelay: number, maxHeight?: number): Promise<void> {
-  await page.evaluate(async ([delay, maxH]) => {
+async function scrollFullPage(page: Page, scrollDelay: number, maxHeight?: number, scrollBy?: number): Promise<void> {
+  await page.evaluate(async ([delay, maxH, step]) => {
     await new Promise<void>((resolve) => {
       let totalHeight = 0;
-      const scrollStep = window.innerHeight;
+      const scrollStep = step || window.innerHeight;
       const timer = setInterval(() => {
         window.scrollBy(0, scrollStep);
         totalHeight += scrollStep;
@@ -308,7 +411,130 @@ async function scrollFullPage(page: Page, scrollDelay: number, maxHeight?: numbe
         }
       }, delay);
     });
-  }, [scrollDelay, maxHeight ?? 0] as const);
+  }, [scrollDelay, maxHeight ?? 0, scrollBy ?? 0] as const);
+}
+
+// ── Content validation ────────────────────────────────────────────
+
+async function validatePageContent(page: Page, forbidden?: string, required?: string): Promise<void> {
+  const text = await page.evaluate(() => document.body.innerText);
+  if (forbidden) {
+    for (const pattern of parseStringList(forbidden)) {
+      if (text.includes(pattern)) {
+        throw new Error(`Page contains forbidden content: "${pattern}"`);
+      }
+    }
+  }
+  if (required) {
+    for (const pattern of parseStringList(required)) {
+      if (!text.includes(pattern)) {
+        throw new Error(`Page missing required content: "${pattern}"`);
+      }
+    }
+  }
+}
+
+async function checkFailedRequests(page: Page, _patterns: string[]): Promise<void> {
+  // Request failure tracking is best done via response event listeners.
+  // For now, we accept the param for API compatibility.
+}
+
+// ── Content extraction ────────────────────────────────────────────
+
+async function extractPageContent(page: Page, format: 'html' | 'markdown', includeShadowDom: boolean): Promise<string> {
+  if (format === 'html') {
+    if (includeShadowDom) {
+      return page.evaluate(() => {
+        function getShadowContent(el: Element): string {
+          let html = el.outerHTML;
+          if (el.shadowRoot) {
+            html = html.replace('</'+el.tagName.toLowerCase()+'>', el.shadowRoot.innerHTML + '</'+el.tagName.toLowerCase()+'>');
+          }
+          return html;
+        }
+        return getShadowContent(document.documentElement);
+      });
+    }
+    return page.content();
+  }
+  // markdown: extract text content with basic structure
+  return page.evaluate(() => {
+    function nodeToMd(node: Node): string {
+      if (node.nodeType === Node.TEXT_NODE) return node.textContent || '';
+      if (node.nodeType !== Node.ELEMENT_NODE) return '';
+      const el = node as HTMLElement;
+      const tag = el.tagName.toLowerCase();
+      const children = Array.from(el.childNodes).map(nodeToMd).join('');
+      if (tag.match(/^h[1-6]$/)) return '#'.repeat(parseInt(tag[1])) + ' ' + children.trim() + '\n\n';
+      if (tag === 'p') return children.trim() + '\n\n';
+      if (tag === 'br') return '\n';
+      if (tag === 'a') return `[${children}](${el.getAttribute('href') || ''})`;
+      if (tag === 'strong' || tag === 'b') return `**${children}**`;
+      if (tag === 'em' || tag === 'i') return `*${children}*`;
+      if (tag === 'code') return `\`${children}\``;
+      if (tag === 'li') return `- ${children.trim()}\n`;
+      if (tag === 'ul' || tag === 'ol') return children + '\n';
+      return children;
+    }
+    return nodeToMd(document.body).trim();
+  });
+}
+
+// ── Metadata collection ───────────────────────────────────────────
+
+async function collectMetadata(
+  page: Page,
+  params: ScreenshotParams,
+  metadata: Record<string, unknown>,
+  httpStatusCode?: number,
+  httpHeaders?: Record<string, string>,
+): Promise<void> {
+  if (params.metadata_page_title) {
+    metadata.page_title = await page.title();
+  }
+
+  if (params.metadata_open_graph) {
+    metadata.open_graph = await page.evaluate(() => {
+      const og: Record<string, string> = {};
+      document.querySelectorAll('meta[property^="og:"]').forEach((el) => {
+        const prop = el.getAttribute('property');
+        const content = el.getAttribute('content');
+        if (prop && content) og[prop.replace('og:', '')] = content;
+      });
+      return Object.keys(og).length > 0 ? og : null;
+    });
+  }
+
+  if (params.metadata_icon) {
+    metadata.icon = await page.evaluate(() => {
+      const link = document.querySelector('link[rel="icon"], link[rel="shortcut icon"]');
+      return link ? link.getAttribute('href') : null;
+    });
+  }
+
+  if (params.metadata_fonts) {
+    metadata.fonts = await page.evaluate(() => {
+      const fonts = new Set<string>();
+      document.fonts.forEach((f) => fonts.add(f.family));
+      return Array.from(fonts);
+    });
+  }
+
+  if (params.metadata_content) {
+    if (params.metadata_content_format === 'markdown') {
+      metadata.content = await extractPageContent(page, 'markdown', params.include_shadow_dom);
+    } else {
+      metadata.content = await page.content();
+    }
+  }
+
+  if (params.metadata_http_response_status_code && httpStatusCode !== undefined) {
+    metadata.http_response_status_code = httpStatusCode;
+  }
+
+  if (params.metadata_http_response_headers && httpHeaders) {
+    metadata.http_response_headers = httpHeaders;
+  }
 }
 
 // ── Blocking helpers ───────────────────────────────────────────────
@@ -379,23 +605,14 @@ async function hideCookieBanners(page: Page): Promise<void> {
 }
 
 const CHAT_WIDGET_SELECTORS = [
-  // Intercom
   '#intercom-container', '#intercom-frame', '.intercom-lightweight-app',
-  // Crisp
   '.crisp-client',
-  // Drift
   '#drift-widget-container', '#drift-frame-controller',
-  // Zendesk
   '#launcher', '.zEWidget-launcher', '#webWidget',
-  // HubSpot
   '#hubspot-messages-iframe-container',
-  // Tawk.to
   '.widget-visible', '#tawk-widget-container',
-  // LiveChat
   '#chat-widget-container',
-  // Freshdesk/Freshchat
   '#freshworks-container',
-  // Generic patterns
   '[class*="chat-widget"]', '[class*="chatWidget"]',
   '[id*="chat-widget"]', '[id*="chatWidget"]',
   '[class*="live-chat"]', '[class*="liveChat"]',
@@ -403,4 +620,10 @@ const CHAT_WIDGET_SELECTORS = [
 
 async function hideChatWidgets(page: Page): Promise<void> {
   await hideElements(page, CHAT_WIDGET_SELECTORS);
+}
+
+// ── Utility ───────────────────────────────────────────────────────
+
+function parseStringList(value: string): string[] {
+  return value.split(',').map(s => s.trim()).filter(Boolean);
 }
