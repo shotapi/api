@@ -7,8 +7,12 @@ import { checkRateLimit, getRateLimitStats, type Tier } from './rate-limit.js';
 import { logRequest, getStats } from './db.js';
 import { extractApiKey, validateApiKey } from './auth.js';
 import { screenshotLimiter, QueueFullError } from './limiter.js';
+import { getBrowser } from './screenshot.js';
+import { getClient } from './db.js';
 import keys from './routes/keys.js';
 import billing from './routes/billing.js';
+
+const startedAt = Date.now();
 
 const app = new Hono();
 
@@ -32,6 +36,54 @@ app.get('/api', (c) => {
 
 app.get('/health', (c) => {
   return c.json({ status: 'ok' });
+});
+
+// Deep health check — verifies Playwright + DB are functional
+let deepCheckCache: { result: Record<string, unknown>; expiresAt: number } | null = null;
+
+app.get('/health/deep', async (c) => {
+  const now = Date.now();
+  if (deepCheckCache && now < deepCheckCache.expiresAt) {
+    return c.json(deepCheckCache.result);
+  }
+
+  const result: Record<string, unknown> = {
+    status: 'ok',
+    playwright: 'error',
+    db: 'error',
+    uptime_seconds: Math.floor((now - startedAt) / 1000),
+    version: '0.2.0',
+  };
+
+  // Check Playwright: take a 1x1 screenshot of about:blank
+  try {
+    const browser = await getBrowser();
+    const context = await browser.newContext({ viewport: { width: 1, height: 1 } });
+    const page = await context.newPage();
+    await page.goto('about:blank');
+    await page.screenshot({ type: 'png' });
+    await context.close();
+    result.playwright = 'ok';
+  } catch (err) {
+    result.status = 'degraded';
+    result.playwright_error = err instanceof Error ? err.message : 'Unknown error';
+  }
+
+  // Check DB: simple query
+  try {
+    const db = getClient();
+    await db.execute('SELECT 1');
+    result.db = 'ok';
+  } catch (err) {
+    result.status = 'degraded';
+    result.db_error = err instanceof Error ? err.message : 'Unknown error';
+  }
+
+  // Cache for 30s
+  deepCheckCache = { result, expiresAt: now + 30_000 };
+
+  const statusCode = result.status === 'ok' ? 200 : 503;
+  return c.json(result, statusCode);
 });
 
 app.get('/stats', async (c) => {

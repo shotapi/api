@@ -1,6 +1,7 @@
 # ShotAPI
 
 [![Status](https://img.shields.io/badge/status-beta-yellow)](https://github.com/shotapi/api)
+[![Uptime](https://shotapi.betteruptime.com/badge.svg)](https://shotapi.betteruptime.com)
 [![License](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
 [![API](https://img.shields.io/badge/API-live-green)](https://shotapi.io)
 [![GitHub Stars](https://img.shields.io/github/stars/shotapi/api)](https://github.com/shotapi/api)
