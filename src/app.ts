@@ -2,13 +2,12 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import type { Context } from 'hono';
 import { parseParams } from './params.js';
-import { takeScreenshot } from './screenshot.js';
+import { takeScreenshot, getBrowser } from './screenshot.js';
 import { checkRateLimit, getRateLimitStats, type Tier } from './rate-limit.js';
-import { logRequest, getStats } from './db.js';
+import { logRequest, getStats, getClient } from './db.js';
 import { extractApiKey, validateApiKey } from './auth.js';
 import { screenshotLimiter, QueueFullError } from './limiter.js';
-import { getBrowser } from './screenshot.js';
-import { getClient } from './db.js';
+import { cacheKey, cacheGet, cacheSet, cacheStats } from './cache.js';
 import keys from './routes/keys.js';
 import billing from './routes/billing.js';
 
@@ -24,7 +23,7 @@ app.use('*', cors());
 app.get('/api', (c) => {
   return c.json({
     name: 'ShotAPI',
-    version: '0.2.0',
+    version: '0.3.0',
     docs: 'https://shotapi.io/docs',
     endpoints: {
       screenshot: 'GET /take?url=https://example.com',
@@ -52,10 +51,9 @@ app.get('/health/deep', async (c) => {
     playwright: 'error',
     db: 'error',
     uptime_seconds: Math.floor((now - startedAt) / 1000),
-    version: '0.2.0',
+    version: '0.3.0',
   };
 
-  // Check Playwright: take a 1x1 screenshot of about:blank
   try {
     const browser = await getBrowser();
     const context = await browser.newContext({ viewport: { width: 1, height: 1 } });
@@ -69,7 +67,6 @@ app.get('/health/deep', async (c) => {
     result.playwright_error = err instanceof Error ? err.message : 'Unknown error';
   }
 
-  // Check DB: simple query
   try {
     const db = getClient();
     await db.execute('SELECT 1');
@@ -79,7 +76,6 @@ app.get('/health/deep', async (c) => {
     result.db_error = err instanceof Error ? err.message : 'Unknown error';
   }
 
-  // Cache for 30s
   deepCheckCache = { result, expiresAt: now + 30_000 };
 
   const statusCode = result.status === 'ok' ? 200 : 503;
@@ -89,7 +85,7 @@ app.get('/health/deep', async (c) => {
 app.get('/stats', async (c) => {
   const rateLimitStats = await getRateLimitStats();
   const dbStats = await getStats();
-  return c.json({ ...rateLimitStats, ...dbStats, concurrency: screenshotLimiter.stats });
+  return c.json({ ...rateLimitStats, ...dbStats, concurrency: screenshotLimiter.stats, cache: cacheStats() });
 });
 
 // --- API key management ---
@@ -152,25 +148,68 @@ async function handleScreenshot(c: Context, rawParams: Record<string, string>) {
   try {
     const params = parseParams(rawParams);
 
+    // Check cache first
+    if (params.cache) {
+      const key = cacheKey(params);
+      const cached = cacheGet(key);
+      if (cached) {
+        c.header('X-Cache', 'HIT');
+        if (params.response_type === 'json') {
+          return c.json({
+            screenshot: cached.buffer.toString('base64'),
+            content_type: cached.contentType,
+            cache: 'hit',
+            ...cached.metadata,
+          });
+        }
+        c.header('Content-Type', cached.contentType);
+        c.header('Cache-Control', `public, max-age=${params.cache_ttl}`);
+        return new Response(new Uint8Array(cached.buffer), { headers: c.res.headers });
+      }
+      c.header('X-Cache', 'MISS');
+    }
+
     const startTime = Date.now();
-    const screenshot = await screenshotLimiter.run(() => takeScreenshot(params));
+    const result = await screenshotLimiter.run(() => takeScreenshot(params));
     const duration = Date.now() - startTime;
+
+    const sourceUrl = params.url || (params.html ? 'html:inline' : 'markdown:inline');
 
     // Log request to database
     await logRequest({
       apiKey,
       ip,
-      url: params.url,
+      url: sourceUrl,
       format: params.format,
       durationMs: duration,
       status: 'success',
     });
 
-    c.header('Content-Type', CONTENT_TYPES[params.format]);
-    c.header('X-Screenshot-Duration-Ms', duration.toString());
-    c.header('Cache-Control', 'public, max-age=3600');
+    const contentType = CONTENT_TYPES[params.format];
 
-    return new Response(new Uint8Array(screenshot), {
+    // Store in cache
+    if (params.cache) {
+      const key = cacheKey(params);
+      cacheSet(key, { buffer: result.buffer, metadata: result.metadata, contentType }, params.cache_ttl);
+    }
+
+    // JSON response
+    if (params.response_type === 'json') {
+      return c.json({
+        screenshot: result.buffer.toString('base64'),
+        content_type: contentType,
+        duration_ms: duration,
+        cache: params.cache ? 'miss' : 'disabled',
+        ...result.metadata,
+      });
+    }
+
+    // Binary response
+    c.header('Content-Type', contentType);
+    c.header('X-Screenshot-Duration-Ms', duration.toString());
+    c.header('Cache-Control', params.cache ? `public, max-age=${params.cache_ttl}` : 'public, max-age=3600');
+
+    return new Response(new Uint8Array(result.buffer), {
       headers: c.res.headers,
     });
   } catch (error) {
@@ -201,7 +240,7 @@ app.post('/take', async (c) => {
   return handleScreenshot(c, body);
 });
 
-// --- Billing (Stripe) ---
+// --- Billing ---
 
 app.route('/billing', billing);
 
