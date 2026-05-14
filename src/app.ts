@@ -6,6 +6,7 @@ import { takeScreenshot } from './screenshot.js';
 import { checkRateLimit, getRateLimitStats, type Tier } from './rate-limit.js';
 import { logRequest, getStats } from './db.js';
 import { extractApiKey, validateApiKey } from './auth.js';
+import { screenshotLimiter, QueueFullError } from './limiter.js';
 import keys from './routes/keys.js';
 import billing from './routes/billing.js';
 
@@ -36,7 +37,7 @@ app.get('/health', (c) => {
 app.get('/stats', async (c) => {
   const rateLimitStats = await getRateLimitStats();
   const dbStats = await getStats();
-  return c.json({ ...rateLimitStats, ...dbStats });
+  return c.json({ ...rateLimitStats, ...dbStats, concurrency: screenshotLimiter.stats });
 });
 
 // --- API key management ---
@@ -100,7 +101,7 @@ async function handleScreenshot(c: Context, rawParams: Record<string, string>) {
     const params = parseParams(rawParams);
 
     const startTime = Date.now();
-    const screenshot = await takeScreenshot(params);
+    const screenshot = await screenshotLimiter.run(() => takeScreenshot(params));
     const duration = Date.now() - startTime;
 
     // Log request to database
@@ -121,6 +122,17 @@ async function handleScreenshot(c: Context, rawParams: Record<string, string>) {
       headers: c.res.headers,
     });
   } catch (error) {
+    if (error instanceof QueueFullError) {
+      c.header('Retry-After', error.retryAfterSeconds.toString());
+      return c.json(
+        {
+          error: true,
+          message: error.message,
+          retryAfterSeconds: error.retryAfterSeconds,
+        },
+        503
+      );
+    }
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('Screenshot error:', message);
 
