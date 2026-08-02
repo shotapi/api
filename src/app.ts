@@ -8,6 +8,9 @@ import { logRequest, getStats, getClient } from './db.js';
 import { extractApiKey, validateApiKey } from './auth.js';
 import { screenshotLimiter, QueueFullError } from './limiter.js';
 import { cacheKey, cacheGet, cacheSet, cacheStats } from './cache.js';
+import { uploadToStorage } from './storage.js';
+import { createAsyncJob, getJob } from './async-jobs.js';
+import { analyzeWithVision } from './vision.js';
 import keys from './routes/keys.js';
 import billing from './routes/billing.js';
 
@@ -154,16 +157,23 @@ async function handleScreenshot(c: Context, rawParams: Record<string, string>) {
   try {
     const params = parseParams(rawParams);
 
-    // Unsupported feature warnings
+    // Validate storage params early
     if (params.store) {
-      return c.json({ error: true, message: 'S3 storage is not yet supported. Use response_type=json to get base64 output.' }, 501);
+      if (!params.storage_bucket) {
+        return c.json({ error: true, message: 'storage_bucket is required when store=true' }, 400);
+      }
+      if (!params.storage_access_key_id || !params.storage_secret_access_key) {
+        return c.json({ error: true, message: 'storage_access_key_id and storage_secret_access_key are required when store=true' }, 400);
+      }
     }
+
+    // Async mode — return job ID immediately, process in background
     if (params.async) {
-      return c.json({ error: true, message: 'Async/webhook mode is not yet supported.' }, 501);
+      const jobId = createAsyncJob(params);
+      return c.json({ id: jobId, status: 'pending' }, 202);
     }
-    if (params.openai_api_key) {
-      return c.json({ error: true, message: 'OpenAI Vision integration is not yet supported.' }, 501);
-    }
+
+    // Unsupported feature warnings
     if (params.proxy || params.ip_country_code) {
       return c.json({ error: true, message: 'Proxy/geo-proxy is not yet supported.' }, 501);
     }
@@ -217,6 +227,31 @@ async function handleScreenshot(c: Context, rawParams: Record<string, string>) {
       cacheSet(key, { buffer: result.buffer, metadata: result.metadata, contentType }, params.cache_ttl);
     }
 
+    // S3-compatible storage upload
+    let storeResult: { location: string } | undefined;
+    if (params.store) {
+      const upload = await uploadToStorage(result.buffer, params);
+      storeResult = { location: upload.location };
+    }
+
+    // OpenAI Vision analysis
+    let visionResult: { result: string } | undefined;
+    if (params.openai_api_key) {
+      visionResult = await analyzeWithVision(result.buffer, params);
+    }
+
+    // If store or vision was used, return JSON with combined results
+    if (storeResult || visionResult) {
+      return c.json({
+        ...(storeResult ? { store: storeResult } : {}),
+        ...(visionResult ? { vision: visionResult } : {}),
+        ...(result.metadata || {}),
+        screenshot: result.buffer.toString('base64'),
+        content_type: contentType,
+        duration_ms: duration,
+      });
+    }
+
     if (params.external_identifier) c.header('X-External-Identifier', params.external_identifier);
 
     // Empty response
@@ -263,6 +298,15 @@ async function handleScreenshot(c: Context, rawParams: Record<string, string>) {
     return c.json({ error: true, message }, 400);
   }
 }
+
+// Async job status polling
+app.get('/jobs/:id', (c) => {
+  const job = getJob(c.req.param('id'));
+  if (!job) {
+    return c.json({ error: true, message: 'Job not found' }, 404);
+  }
+  return c.json(job);
+});
 
 app.get('/take', async (c) => {
   return handleScreenshot(c, c.req.query());
